@@ -1,0 +1,616 @@
+-- Moon Hub | Dungeon Quest Reborn (Discord Key Link Integrated)
+-- Key: MOON-2026-KEY
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+----------------------------------------------------
+-- 🔑 FIXED NATIVE KEY SYSTEM
+----------------------------------------------------
+local CorrectKey = "MOON-2026-KEY"
+local DiscordKeyLink = "https://discord.gg/Hc5y6urXx3"
+
+local KeySystemUI = Instance.new("ScreenGui")
+KeySystemUI.Name = "MoonHubKeyNative"
+KeySystemUI.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+local KeyFrame = Instance.new("Frame", KeySystemUI)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+KeyFrame.Size = UDim2.new(0, 350, 0, 200)
+KeyFrame.Active = true
+KeyFrame.Draggable = true
+Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
+
+local KTitle = Instance.new("TextLabel", KeyFrame)
+KTitle.Text = "🌙 MOON HUB | KEY SYSTEM"
+KTitle.TextColor3 = Color3.fromRGB(0, 190, 255)
+KTitle.TextSize = 16
+KTitle.Font = Enum.Font.SourceSansBold
+KTitle.Size = UDim2.new(1, 0, 0, 40)
+KTitle.BackgroundTransparency = 1
+
+local KeyBox = Instance.new("TextBox", KeyFrame)
+KeyBox.PlaceholderText = "Key'i buraya gir..."
+KeyBox.Text = ""
+KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
+KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
+KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyBox.Font = Enum.Font.SourceSans
+KeyBox.TextSize = 16
+Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
+
+local VerifyBtn = Instance.new("TextButton", KeyFrame)
+VerifyBtn.Text = "Submit Key"
+VerifyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+VerifyBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+VerifyBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 230)
+VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+VerifyBtn.Font = Enum.Font.SourceSansBold
+VerifyBtn.TextSize = 15
+Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
+
+local CopyBtn = Instance.new("TextButton", KeyFrame)
+CopyBtn.Text = "Discord (Key Al)"
+CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
+CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+CopyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+CopyBtn.Font = Enum.Font.SourceSans
+CopyBtn.TextSize = 14
+Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
+
+local StatusLabel = Instance.new("TextLabel", KeyFrame)
+StatusLabel.Size = UDim2.new(1, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0, 0, 0.8, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.SourceSansItalic
+StatusLabel.Text = "Key bekleniyor..."
+
+CopyBtn.MouseButton1Click:Connect(function()
+    setclipboard(DiscordKeyLink)
+    StatusLabel.Text = "Discord linki kopyalandı!"
+    StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+end)
+
+----------------------------------------------------
+-- 🌐 GLOBALS & ENGINE INITIALIZER
+----------------------------------------------------
+_G.AutoKill = false
+_G.AutoAttack = false
+_G.AutoSkill = false
+_G.KillDistance = 8
+
+_G.AutoEquipBest = false
+_G.SelectedClass = "Physical (Warrior)"
+
+_G.WalkSpeed = 16
+_G.JumpPower = 50
+_G.Noclip = false
+_G.InfiniteJump = false
+
+_G.AutoStart = false
+_G.AutoReplay = false
+_G.AutoNextDungeon = false
+_G.AutoDungeon = false
+
+_G.AutoAddStats = false
+_G.SelectedStat = "Physical Power"
+
+----------------------------------------------------
+-- 🛡️ REAL-TIME EQUIPMENT SCANNER ENGINE
+----------------------------------------------------
+local function ForceEquipBestLogic()
+    pcall(function()
+        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+        if not remotes then return end
+
+        local equipBestRemote = remotes:FindFirstChild("equipBest") or remotes:FindFirstChild("equipBestItems") or remotes:FindFirstChild("autoEquip")
+        
+        local classType = "Physical"
+        if string.find(_G.SelectedClass, "Mage") then classType = "Spell"
+        elseif string.find(_G.SelectedClass, "Tank") then classType = "Defense"
+        elseif string.find(_G.SelectedClass, "Healer") then classType = "Healer" end
+
+        if equipBestRemote then
+            if equipBestRemote:IsA("RemoteEvent") then 
+                equipBestRemote:FireServer(classType)
+                equipBestRemote:FireServer()
+            elseif equipBestRemote:IsA("RemoteFunction") then 
+                equipBestRemote:InvokeServer(classType) 
+                equipBestRemote:InvokeServer()
+            end
+        end
+
+        local equipItemRemote = remotes:FindFirstChild("equipItem") or remotes:FindFirstChild("equip") or remotes:FindFirstChild("changeItem")
+        local playerFolder = LocalPlayer:FindFirstChild("inventory") or LocalPlayer:FindFirstChild("Inventory") or ReplicatedStorage:FindFirstChild("playerData")
+
+        if equipItemRemote and playerFolder then
+            for _, item in pairs(playerFolder:GetChildren()) do
+                if item:IsA("Folder") or item:IsA("Configuration") or item:IsA("IntValue") then
+                    local itemType = item:FindFirstChild("Type") or item:FindFirstChild("itemType")
+                    if itemType then
+                        if equipItemRemote:IsA("RemoteEvent") then
+                            equipItemRemote:FireServer(item)
+                        elseif equipItemRemote:IsA("RemoteFunction") then
+                            equipItemRemote:InvokeServer(item)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function LoadOrionHub()
+    KeySystemUI:Destroy()
+
+    local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
+
+    local Window = OrionLib:MakeWindow({
+        Name = "Moon Hub | Dungeon Quest Reborn",
+        HidePremium = true,
+        SaveConfig = false,
+        ConfigFolder = "MoonHubDQ",
+        IntroEnabled = true,
+        IntroText = "Moon Hub Yükleniyor..."
+    })
+
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+
+    ----------------------------------------------------
+    -- ⚔️ TAB 1: COMBAT ENGINE
+    ----------------------------------------------------
+    local CombatTab = Window:MakeTab({
+        Name = "Combat Engine",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+
+    CombatTab:AddToggle({
+        Name = "Auto Kill & TP (Hedef Üstü)",
+        Default = _G.AutoKill,
+        Callback = function(Value) _G.AutoKill = Value end    
+    })
+
+    CombatTab:AddSlider({
+        Name = "TP Yükseklik Mesafesi",
+        Min = 3,
+        Max = 15,
+        Default = _G.KillDistance,
+        Color = Color3.fromRGB(0, 190, 255),
+        Increment = 1,
+        ValueName = "Studs",
+        Callback = function(Value) _G.KillDistance = Value end    
+    })
+
+    CombatTab:AddToggle({
+        Name = "Auto Attack (Güvenli Remote)",
+        Default = _G.AutoAttack,
+        Callback = function(Value) _G.AutoAttack = Value end    
+    })
+
+    CombatTab:AddToggle({
+        Name = "Smart Auto Skill (E & Q)",
+        Default = _G.AutoSkill,
+        Callback = function(Value) _G.AutoSkill = Value end    
+    })
+
+    ----------------------------------------------------
+    -- 🛡️ TAB 2: ADVANCED CLASS EQUIPMENT
+    ----------------------------------------------------
+    local EquipTab = Window:MakeTab({
+        Name = "Class Equipment",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+
+    EquipTab:AddDropdown({
+        Name = "Sınıf / Build Seçimi",
+        Default = "Physical (Warrior)",
+        Options = {"Physical (Warrior)", "Spell Power (Mage)", "Tank (Defense)", "Healer (Support)"},
+        Callback = function(Value)
+            _G.SelectedClass = Value
+        end
+    })
+
+    EquipTab:AddToggle({
+        Name = "Auto Equip Best Items (Döngü)",
+        Default = _G.AutoEquipBest,
+        Callback = function(Value) 
+            _G.AutoEquipBest = Value 
+            if Value then
+                ForceEquipBestLogic()
+            end
+        end    
+    })
+
+    EquipTab:AddButton({
+        Name = "Şimdi En İyileri Kuşan",
+        Callback = function()
+            ForceEquipBestLogic()
+            OrionLib:MakeNotification({
+                Name = "Kuşanıldı!",
+                Content = _G.SelectedClass .. " için en iyi eşyalar tarandı.",
+                Time = 3
+            })
+        end
+    })
+
+    ----------------------------------------------------
+    -- ⚡ TAB 3: MOVEMENT & SPEED
+    ----------------------------------------------------
+    local MovementTab = Window:MakeTab({
+        Name = "Movement & Speed",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+
+    MovementTab:AddSlider({
+        Name = "WalkSpeed",
+        Min = 16,
+        Max = 150,
+        Default = 16,
+        Color = Color3.fromRGB(0, 255, 120),
+        Increment = 1,
+        ValueName = "Hız",
+        Callback = function(Value) _G.WalkSpeed = Value end    
+    })
+
+    MovementTab:AddSlider({
+        Name = "JumpPower",
+        Min = 50,
+        Max = 300,
+        Default = 50,
+        Color = Color3.fromRGB(255, 200, 0),
+        Increment = 5,
+        ValueName = "Güç",
+        Callback = function(Value) _G.JumpPower = Value end    
+    })
+
+    MovementTab:AddToggle({
+        Name = "Noclip (Duvarlardan Geçme)",
+        Default = _G.Noclip,
+        Callback = function(Value) _G.Noclip = Value end    
+    })
+
+    MovementTab:AddToggle({
+        Name = "Infinite Jump Engine",
+        Default = _G.InfiniteJump,
+        Callback = function(Value) _G.InfiniteJump = Value end    
+    })
+
+    ----------------------------------------------------
+    -- 📈 TAB 4: AUTO STATS
+    ----------------------------------------------------
+    local StatsTab = Window:MakeTab({
+        Name = "Auto Stats",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+
+    StatsTab:AddToggle({
+        Name = "Auto Stat Puanı Dağıt",
+        Default = _G.AutoAddStats,
+        Callback = function(Value) _G.AutoAddStats = Value end    
+    })
+
+    StatsTab:AddDropdown({
+        Name = "Hedef Stat",
+        Default = "Physical Power",
+        Options = {"Physical Power", "Spell Power", "Defense"},
+        Callback = function(Value) _G.SelectedStat = Value end
+    })
+
+    ----------------------------------------------------
+    -- 🏰 TAB 5: DUNGEON AUTOMATION
+    ----------------------------------------------------
+    local DungeonTab = Window:MakeTab({
+        Name = "Dungeon Automation",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Start Dungeon",
+        Default = _G.AutoStart,
+        Callback = function(Value) _G.AutoStart = Value end    
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Replay Dungeon",
+        Default = _G.AutoReplay,
+        Callback = function(Value)
+            _G.AutoReplay = Value
+            if Value then _G.AutoNextDungeon = false end
+        end    
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Next Dungeon",
+        Default = _G.AutoNextDungeon,
+        Callback = function(Value)
+            _G.AutoNextDungeon = Value
+            if Value then _G.AutoReplay = false end
+        end    
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Create Best Dungeon (Lobi)",
+        Default = _G.AutoDungeon,
+        Callback = function(Value) _G.AutoDungeon = Value end    
+    })
+
+    ----------------------------------------------------
+    -- 🎯 TARGET LOCATOR & LOGIC THREADS
+    ----------------------------------------------------
+    local function GetNearestEnemy()
+        local nearest = nil
+        local shortestDistance = math.huge
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+
+        local dungeonFolder = Workspace:FindFirstChild("dungeon") or Workspace:FindFirstChild("Dungeon") or Workspace:FindFirstChild("Monsters") or Workspace
+
+        for _, obj in pairs(dungeonFolder:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                if obj.Name ~= LocalPlayer.Name and obj.Humanoid.Health > 0 then
+                    local dist = (char.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        nearest = obj
+                    end
+                end
+            end
+        end
+        return nearest
+    end
+
+    task.spawn(function()
+        while task.wait(0.02) do
+            if _G.AutoKill then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                        local target = GetNearestEnemy()
+                        if target and target:FindFirstChild("HumanoidRootPart") then
+                            local height = _G.KillDistance or 8
+                            local targetPos = target.HumanoidRootPart.Position
+                            local desiredPos = targetPos + Vector3.new(0, height, 0)
+
+                            char.HumanoidRootPart.CFrame = CFrame.lookAt(desiredPos, targetPos)
+                            target.HumanoidRootPart.Size = Vector3.new(height * 2, height * 2, height * 2)
+                            target.HumanoidRootPart.Transparency = 0.8
+                            target.HumanoidRootPart.CanCollide = false
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        while task.wait(0.05) do
+            if _G.AutoAttack and _G.AutoKill then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char then
+                        local tool = char:FindFirstChildOfClass("Tool")
+                        if tool then tool:Activate() end
+
+                        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes then
+                            local attackRemote = remotes:FindFirstChild("swingWeapon") or remotes:FindFirstChild("attack") or remotes:FindFirstChild("slash")
+                            if attackRemote then
+                                if attackRemote:IsA("RemoteEvent") then attackRemote:FireServer()
+                                elseif attackRemote:IsA("RemoteFunction") then attackRemote:InvokeServer() end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        while task.wait(0.15) do
+            if _G.AutoSkill and _G.AutoKill then
+                pcall(function()
+                    local target = GetNearestEnemy()
+                    if target and target:FindFirstChild("HumanoidRootPart") then
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                        task.wait(0.01)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                        
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                        task.wait(0.01)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+
+                        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes then
+                            local useSkill = remotes:FindFirstChild("useAbility") or remotes:FindFirstChild("useSkill") or remotes:FindFirstChild("spell")
+                            if useSkill then
+                                if useSkill:IsA("RemoteEvent") then
+                                    useSkill:FireServer("E", target.HumanoidRootPart.Position)
+                                    useSkill:FireServer("Q", target.HumanoidRootPart.Position)
+                                elseif useSkill:IsA("RemoteFunction") then
+                                    useSkill:InvokeServer("E", target.HumanoidRootPart.Position)
+                                    useSkill:InvokeServer("Q", target.HumanoidRootPart.Position)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        while task.wait(3) do
+            if _G.AutoEquipBest then
+                ForceEquipBestLogic()
+            end
+        end
+    end)
+
+    RunService.Stepped:Connect(function()
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                if char:FindFirstChild("Humanoid") then
+                    char.Humanoid.WalkSpeed = _G.WalkSpeed or 16
+                    char.Humanoid.JumpPower = _G.JumpPower or 50
+                end
+
+                if _G.Noclip then
+                    for _, part in pairs(char:GetChildren()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
+                    end
+                end
+            end
+        end)
+    end)
+
+    UserInputService.JumpRequest:Connect(function()
+        if _G.InfiniteJump then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        while task.wait(0.3) do
+            if _G.AutoAddStats then
+                pcall(function()
+                    local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+                    if remotes then
+                        local statName = _G.SelectedStat
+                        local statShort = statName
+                        if statName == "Physical Power" then statShort = "Physical"
+                        elseif statName == "Spell Power" then statShort = "Spell" end
+
+                        local posibles = {
+                            "changeStat", "addStatPoint", "allocateStat", "addStat", 
+                            "requestStatAdd", "upgradeStat", "pointAllocate"
+                        }
+
+                        for _, rName in ipairs(posibles) do
+                            local remote = remotes:FindFirstChild(rName)
+                            if remote then
+                                if remote:IsA("RemoteEvent") then
+                                    remote:FireServer(statName, 1)
+                                    remote:FireServer(statShort, 1)
+                                elseif remote:IsA("RemoteFunction") then
+                                    remote:InvokeServer(statName, 1)
+                                    remote:InvokeServer(statShort, 1)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    local function GetBestDungeonData(playerLevel)
+        if playerLevel >= 180 then return "Orbital Outpost", "Nightmare"
+        elseif playerLevel >= 160 then return "Gilded Depths", "Nightmare"
+        elseif playerLevel >= 140 then return "Volcanic Catacombs", "Nightmare"
+        elseif playerLevel >= 120 then return "Aquatic Temple", "Nightmare"
+        elseif playerLevel >= 105 then return "Unholy Sanctuary", "Nightmare"
+        elseif playerLevel >= 90 then return "King's Castle", "Nightmare"
+        elseif playerLevel >= 75 then return "Pirate Island", "Nightmare"
+        elseif playerLevel >= 60 then return "Underworld", "Insane"
+        elseif playerLevel >= 45 then return "Steampunk Sewers", "Hard"
+        elseif playerLevel >= 30 then return "Winter Outpost", "Hard"
+        elseif playerLevel >= 15 then return "Desert Temple", "Medium"
+        else return "Desert Temple", "Easy" end
+    end
+
+    task.spawn(function()
+        while task.wait(1) do
+            local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+            if not remotes then continue end
+
+            if _G.AutoStart then
+                pcall(function()
+                    local startNames = {"startDungeon", "StartDungeon", "changeStartValue", "startTimer", "ready", "voteStart"}
+                    for _, name in pairs(startNames) do
+                        local remote = remotes:FindFirstChild(name)
+                        if remote then
+                            if remote:IsA("RemoteEvent") then remote:FireServer()
+                            elseif remote:IsA("RemoteFunction") then remote:InvokeServer() end
+                        end
+                    end
+                end)
+            end
+
+            if _G.AutoReplay then
+                pcall(function()
+                    local replay = remotes:FindFirstChild("changeCanReplay") or remotes:FindFirstChild("ReplayDungeon") or remotes:FindFirstChild("playAgain")
+                    if replay then
+                        if replay:IsA("RemoteEvent") then replay:FireServer(true)
+                        elseif replay:IsA("RemoteFunction") then replay:InvokeServer(true) end
+                    end
+                end)
+            end
+
+            if _G.AutoNextDungeon then
+                pcall(function()
+                    local nextRemote = remotes:FindFirstChild("nextDungeon") or remotes:FindFirstChild("NextDungeon") or remotes:FindFirstChild("voteNextDungeon")
+                    if nextRemote then
+                        if nextRemote:IsA("RemoteEvent") then nextRemote:FireServer()
+                        elseif nextRemote:IsA("RemoteFunction") then nextRemote:InvokeServer() end
+                    end
+                end)
+            end
+
+            if _G.AutoDungeon then
+                pcall(function()
+                    local level = 1
+                    local pData = LocalPlayer:FindFirstChild("leaderstats") or LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("playerData")
+                    if pData and pData:FindFirstChild("Level") then level = pData.Level.Value end
+                    
+                    local mapName, difficulty = GetBestDungeonData(level)
+                    local createRemote = remotes:FindFirstChild("createLobby") or remotes:FindFirstChild("CreateLobby") or remotes:FindFirstChild("newLobby")
+                    
+                    if createRemote then
+                        if createRemote:IsA("RemoteFunction") then createRemote:InvokeServer(mapName, difficulty, 1, true)
+                        elseif createRemote:IsA("RemoteEvent") then createRemote:FireServer(mapName, difficulty, 1, true) end
+                    end
+                end)
+            end
+        end
+    end)
+
+    OrionLib:Init()
+end
+
+VerifyBtn.MouseButton1Click:Connect(function()
+    local input = string.gsub(KeyBox.Text, "%s+", "")
+    if input == CorrectKey then
+        StatusLabel.Text = "Doğru Key! Yükleniyor..."
+        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        task.wait(0.4)
+        LoadOrionHub()
+    else
+        StatusLabel.Text = "Geçersiz Key! Tekrar dene."
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
