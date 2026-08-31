@@ -1,5 +1,5 @@
 -- Moon Hub | Dungeon Quest Reborn (Dynamic 6-Hour Key & Save System)
--- Key Format: MOON-HUB-XXXXXX (Her 6 saatte bir otomatik değişir)
+-- Key Format: MOON-HUB-XXXXXX (Changes automatically every 6 hours)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -20,7 +20,7 @@ local KeyFileName = "MoonHub_SaveData.json"
 local DiscordKeyLink = "https://discord.gg/Hc5y6urXx3"
 local SixHoursInSeconds = 6 * 3600
 
--- Her 6 saatte bir (00:00, 06:00, 12:00, 18:00 UTC) değişen Key algoritması
+-- Algorithm: Changes Key every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
 local function GetCurrentKey()
     local currentPeriod = math.floor(os.time() / SixHoursInSeconds)
     return "MOON-HUB-" .. tostring(currentPeriod)
@@ -28,7 +28,7 @@ end
 
 local CorrectKey = GetCurrentKey()
 
--- Hafızadaki Key'i Kontrol Etme (6 Saat Doldu mu?)
+-- Check if saved key exists and is still valid (< 6 hours old)
 local function CheckSavedKey()
     if isfile and readfile and isfile(KeyFileName) then
         local success, result = pcall(function()
@@ -44,7 +44,7 @@ local function CheckSavedKey()
     return false
 end
 
--- Yeni Key'i Bilgisayara Kaydetme
+-- Save valid Key locally
 local function SaveKey(enteredKey)
     if writefile then
         local data = {
@@ -127,7 +127,7 @@ local function ForceEquipBestLogic()
 end
 
 ----------------------------------------------------
--- 🚀 MAIN HUB LOADER
+-- 🚀 MAIN HUB LOADER (ENGLISH UI)
 ----------------------------------------------------
 local function LoadOrionHub()
     local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
@@ -138,7 +138,7 @@ local function LoadOrionHub()
         SaveConfig = false,
         ConfigFolder = "MoonHubDQ",
         IntroEnabled = true,
-        IntroText = "Moon Hub Yükleniyor..."
+        IntroText = "Loading Moon Hub..."
     })
 
     LocalPlayer.Idled:Connect(function()
@@ -156,13 +156,13 @@ local function LoadOrionHub()
     })
 
     CombatTab:AddToggle({
-        Name = "Auto Kill & TP (Hedef Üstü)",
+        Name = "Auto Kill & TP Above Target",
         Default = _G.AutoKill,
         Callback = function(Value) _G.AutoKill = Value end    
     })
 
     CombatTab:AddSlider({
-        Name = "TP Yükseklik Mesafesi",
+        Name = "TP Height Distance",
         Min = 3,
         Max = 15,
         Default = _G.KillDistance,
@@ -173,7 +173,7 @@ local function LoadOrionHub()
     })
 
     CombatTab:AddToggle({
-        Name = "Auto Attack (Güvenli Remote)",
+        Name = "Auto Attack (Safe Remote)",
         Default = _G.AutoAttack,
         Callback = function(Value) _G.AutoAttack = Value end    
     })
@@ -194,7 +194,7 @@ local function LoadOrionHub()
     })
 
     EquipTab:AddDropdown({
-        Name = "Sınıf / Build Seçimi",
+        Name = "Select Class / Build",
         Default = "Physical (Warrior)",
         Options = {"Physical (Warrior)", "Spell Power (Mage)", "Tank (Defense)", "Healer (Support)"},
         Callback = function(Value)
@@ -203,7 +203,7 @@ local function LoadOrionHub()
     })
 
     EquipTab:AddToggle({
-        Name = "Auto Equip Best Items (Döngü)",
+        Name = "Auto Equip Best Items (Loop)",
         Default = _G.AutoEquipBest,
         Callback = function(Value) 
             _G.AutoEquipBest = Value 
@@ -214,12 +214,12 @@ local function LoadOrionHub()
     })
 
     EquipTab:AddButton({
-        Name = "Şimdi En İyileri Kuşan",
+        Name = "Equip Best Items Now",
         Callback = function()
             ForceEquipBestLogic()
             OrionLib:MakeNotification({
-                Name = "Kuşanıldı!",
-                Content = _G.SelectedClass .. " için en iyi eşyalar tarandı.",
+                Name = "Equipped!",
+                Content = "Best items scanned for " .. _G.SelectedClass .. ".",
                 Time = 3
             })
         end
@@ -241,7 +241,7 @@ local function LoadOrionHub()
         Default = 16,
         Color = Color3.fromRGB(0, 255, 120),
         Increment = 1,
-        ValueName = "Hız",
+        ValueName = "Speed",
         Callback = function(Value) _G.WalkSpeed = Value end    
     })
 
@@ -252,12 +252,12 @@ local function LoadOrionHub()
         Default = 50,
         Color = Color3.fromRGB(255, 200, 0),
         Increment = 5,
-        ValueName = "Güç",
+        ValueName = "Power",
         Callback = function(Value) _G.JumpPower = Value end    
     })
 
     MovementTab:AddToggle({
-        Name = "Noclip (Duvarlardan Geçme)",
+        Name = "Noclip (Walk Through Walls)",
         Default = _G.Noclip,
         Callback = function(Value) _G.Noclip = Value end    
     })
@@ -278,13 +278,13 @@ local function LoadOrionHub()
     })
 
     StatsTab:AddToggle({
-        Name = "Auto Stat Puanı Dağıt",
+        Name = "Auto Allocate Stat Points",
         Default = _G.AutoAddStats,
         Callback = function(Value) _G.AutoAddStats = Value end    
     })
 
     StatsTab:AddDropdown({
-        Name = "Hedef Stat",
+        Name = "Target Stat",
         Default = "Physical Power",
         Options = {"Physical Power", "Spell Power", "Defense"},
         Callback = function(Value) _G.SelectedStat = Value end
@@ -324,7 +324,7 @@ local function LoadOrionHub()
     })
 
     DungeonTab:AddToggle({
-        Name = "Auto Create Best Dungeon (Lobi)",
+        Name = "Auto Create Best Dungeon (Lobby)",
         Default = _G.AutoDungeon,
         Callback = function(Value) _G.AutoDungeon = Value end    
     })
@@ -577,7 +577,7 @@ local function LoadOrionHub()
 end
 
 ----------------------------------------------------
--- 🔐 CHECK SAVED KEY OR SHOW KEY UI
+-- 🔐 CHECK SAVED KEY OR SHOW ENGLISH KEY UI
 ----------------------------------------------------
 if CheckSavedKey() then
     LoadOrionHub()
@@ -603,7 +603,7 @@ else
     KTitle.BackgroundTransparency = 1
 
     local KeyBox = Instance.new("TextBox", KeyFrame)
-    KeyBox.PlaceholderText = "Key'i buraya gir..."
+    KeyBox.PlaceholderText = "Enter key here..."
     KeyBox.Text = ""
     KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
     KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
@@ -624,7 +624,7 @@ else
     Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
 
     local CopyBtn = Instance.new("TextButton", KeyFrame)
-    CopyBtn.Text = "Discord (Key Al)"
+    CopyBtn.Text = "Get Key (Discord)"
     CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
     CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
     CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -640,25 +640,25 @@ else
     StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
     StatusLabel.TextSize = 13
     StatusLabel.Font = Enum.Font.SourceSansItalic
-    StatusLabel.Text = "Key bekleniyor..."
+    StatusLabel.Text = "Waiting for Key..."
 
     CopyBtn.MouseButton1Click:Connect(function()
         setclipboard(DiscordKeyLink)
-        StatusLabel.Text = "Discord linki kopyalandı!"
+        StatusLabel.Text = "Discord link copied to clipboard!"
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     end)
 
     VerifyBtn.MouseButton1Click:Connect(function()
         local input = string.gsub(KeyBox.Text, "%s+", "")
         if input == CorrectKey then
-            StatusLabel.Text = "Doğru Key! Yükleniyor..."
+            StatusLabel.Text = "Correct Key! Loading..."
             StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
             SaveKey(input)
             task.wait(0.4)
             KeySystemUI:Destroy()
             LoadOrionHub()
         else
-            StatusLabel.Text = "Geçersiz veya Süresi Dolmuş Key!"
+            StatusLabel.Text = "Invalid or Expired Key!"
             StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         end
     end)
