@@ -1,5 +1,4 @@
--- Moon Hub | Dungeon Quest Reborn (Dynamic 6-Hour Key & Save System)
--- Key Format: MOON-HUB-XXXXXX (Changes automatically every 6 hours)
+-- Moon Hub | Dungeon Quest Reborn (Work.ink Key System)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -14,29 +13,52 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 ----------------------------------------------------
--- 🔑 DYNAMIC 6-HOUR KEY & SAVE SYSTEM
+-- 🔑 WORK.INK CONFIGURATION
 ----------------------------------------------------
-local KeyFileName = "MoonHub_SaveData.json"
-local DiscordKeyLink = "https://discord.gg/Hc5y6urXx3"
-local SixHoursInSeconds = 6 * 3600
+local KeyFileName = "MoonHub_WorkInkSave.json"
 
--- Algorithm: Changes Key every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
-local function GetCurrentKey()
-    local currentPeriod = math.floor(os.time() / SixHoursInSeconds)
-    return "MOON-HUB-" .. tostring(currentPeriod)
+-- Work.ink Panosundan Alınacak Bilgiler:
+local WORKINK_API_KEY = "4a081c98-1a1b-4bc9-8e70-c0ea2f892512" 
+local WORKINK_LINK_ID = "2ULB/moon-games-key"
+
+-- Oyuncunun Work.ink Reklam Linki
+local function GetWorkInkLink()
+    return string.format("https://work.ink/%s", WORKINK_LINK_ID)
 end
 
-local CorrectKey = GetCurrentKey()
+-- Work.ink Key Doğrulama
+local function VerifyWorkInkKey(userEnteredKey)
+    local requestUrl = string.format(
+        "https://work.ink/api/v2/token/verify/%s/%s",
+        WORKINK_API_KEY,
+        userEnteredKey
+    )
+    
+    local success, response = pcall(function()
+        return game:HttpGet(requestUrl)
+    end)
+    
+    if success and response then
+        local decodeSuccess, data = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        
+        if decodeSuccess and data and (data.valid == true or data.success == true) then
+            return true
+        end
+    end
+    return false
+end
 
--- Check if saved key exists and is still valid (< 6 hours old)
+-- Yerel Json Kontrolü
 local function CheckSavedKey()
     if isfile and readfile and isfile(KeyFileName) then
         local success, result = pcall(function()
             return HttpService:JSONDecode(readfile(KeyFileName))
         end)
         
-        if success and result and result.Key == CorrectKey then
-            if (os.time() - (result.Time or 0)) < SixHoursInSeconds then
+        if success and result and result.Key then
+            if VerifyWorkInkKey(result.Key) then
                 return true
             end
         end
@@ -44,11 +66,12 @@ local function CheckSavedKey()
     return false
 end
 
--- Save valid Key locally
+-- Kayıt
 local function SaveKey(enteredKey)
     if writefile then
         local data = {
             Key = enteredKey,
+            UserId = LocalPlayer.UserId,
             Time = os.time()
         }
         pcall(function()
@@ -82,7 +105,7 @@ _G.AutoAddStats = false
 _G.SelectedStat = "Physical Power"
 
 ----------------------------------------------------
--- 🛡️ REAL-TIME EQUIPMENT SCANNER ENGINE
+-- 🛡️ EQUIPMENT SCANNER ENGINE
 ----------------------------------------------------
 local function ForceEquipBestLogic()
     pcall(function()
@@ -127,7 +150,7 @@ local function ForceEquipBestLogic()
 end
 
 ----------------------------------------------------
--- 🚀 MAIN HUB LOADER (ENGLISH UI)
+-- 🚀 MAIN HUB LOADER
 ----------------------------------------------------
 local function LoadOrionHub()
     local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
@@ -577,7 +600,7 @@ local function LoadOrionHub()
 end
 
 ----------------------------------------------------
--- 🔐 CHECK SAVED KEY OR SHOW ENGLISH KEY UI
+-- 🔐 CHECK SAVED KEY OR SHOW KEY UI
 ----------------------------------------------------
 if CheckSavedKey() then
     LoadOrionHub()
@@ -595,15 +618,15 @@ else
     Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
 
     local KTitle = Instance.new("TextLabel", KeyFrame)
-    KTitle.Text = "🌙 MOON HUB | KEY SYSTEM (6H)"
+    KTitle.Text = "🌙 MOON HUB | WORK.INK KEY SYSTEM"
     KTitle.TextColor3 = Color3.fromRGB(0, 190, 255)
-    KTitle.TextSize = 16
+    KTitle.TextSize = 15
     KTitle.Font = Enum.Font.SourceSansBold
     KTitle.Size = UDim2.new(1, 0, 0, 40)
     KTitle.BackgroundTransparency = 1
 
     local KeyBox = Instance.new("TextBox", KeyFrame)
-    KeyBox.PlaceholderText = "Enter key here..."
+    KeyBox.PlaceholderText = "Paste your key here..."
     KeyBox.Text = ""
     KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
     KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
@@ -624,7 +647,7 @@ else
     Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
 
     local CopyBtn = Instance.new("TextButton", KeyFrame)
-    CopyBtn.Text = "Get Key (Discord)"
+    CopyBtn.Text = "Get Key (Work.ink)"
     CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
     CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
     CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -640,26 +663,32 @@ else
     StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
     StatusLabel.TextSize = 13
     StatusLabel.Font = Enum.Font.SourceSansItalic
-    StatusLabel.Text = "Waiting for Key..."
+    StatusLabel.Text = "Waiting for input..."
 
     CopyBtn.MouseButton1Click:Connect(function()
-        setclipboard(DiscordKeyLink)
-        StatusLabel.Text = "Discord link copied to clipboard!"
+        local workLink = GetWorkInkLink()
+        setclipboard(workLink)
+        StatusLabel.Text = "Work.ink link copied to clipboard!"
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     end)
 
     VerifyBtn.MouseButton1Click:Connect(function()
         local input = string.gsub(KeyBox.Text, "%s+", "")
-        if input == CorrectKey then
-            StatusLabel.Text = "Correct Key! Loading..."
-            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            SaveKey(input)
-            task.wait(0.4)
-            KeySystemUI:Destroy()
-            LoadOrionHub()
-        else
-            StatusLabel.Text = "Invalid or Expired Key!"
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
+        StatusLabel.Text = "Verifying with Work.ink..."
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+        
+        task.spawn(function()
+            if VerifyWorkInkKey(input) then
+                StatusLabel.Text = "Key Verified! Loading..."
+                StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                SaveKey(input)
+                task.wait(0.4)
+                KeySystemUI:Destroy()
+                LoadOrionHub()
+            else
+                StatusLabel.Text = "Invalid or Expired Key!"
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            end
+        end)
     end)
 end
