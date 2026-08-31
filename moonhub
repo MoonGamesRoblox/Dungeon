@@ -1,5 +1,5 @@
--- Moon Hub | Dungeon Quest Reborn (Discord Key Link Integrated)
--- Key: MOON-2026-KEY
+-- Moon Hub | Dungeon Quest Reborn (Dynamic 6-Hour Key & Save System)
+-- Key Format: MOON-HUB-XXXXXX (Her 6 saatte bir otomatik değişir)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -10,79 +10,52 @@ local VirtualUser = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 ----------------------------------------------------
--- 🔑 FIXED NATIVE KEY SYSTEM
+-- 🔑 DYNAMIC 6-HOUR KEY & SAVE SYSTEM
 ----------------------------------------------------
-local CorrectKey = "MOON-2026-KEY"
+local KeyFileName = "MoonHub_SaveData.json"
 local DiscordKeyLink = "https://discord.gg/Hc5y6urXx3"
+local SixHoursInSeconds = 6 * 3600
 
-local KeySystemUI = Instance.new("ScreenGui")
-KeySystemUI.Name = "MoonHubKeyNative"
-KeySystemUI.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+-- Her 6 saatte bir (00:00, 06:00, 12:00, 18:00 UTC) değişen Key algoritması
+local function GetCurrentKey()
+    local currentPeriod = math.floor(os.time() / SixHoursInSeconds)
+    return "MOON-HUB-" .. tostring(currentPeriod)
+end
 
-local KeyFrame = Instance.new("Frame", KeySystemUI)
-KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
-KeyFrame.Size = UDim2.new(0, 350, 0, 200)
-KeyFrame.Active = true
-KeyFrame.Draggable = true
-Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
+local CorrectKey = GetCurrentKey()
 
-local KTitle = Instance.new("TextLabel", KeyFrame)
-KTitle.Text = "🌙 MOON HUB | KEY SYSTEM"
-KTitle.TextColor3 = Color3.fromRGB(0, 190, 255)
-KTitle.TextSize = 16
-KTitle.Font = Enum.Font.SourceSansBold
-KTitle.Size = UDim2.new(1, 0, 0, 40)
-KTitle.BackgroundTransparency = 1
+-- Hafızadaki Key'i Kontrol Etme (6 Saat Doldu mu?)
+local function CheckSavedKey()
+    if isfile and readfile and isfile(KeyFileName) then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(KeyFileName))
+        end)
+        
+        if success and result and result.Key == CorrectKey then
+            if (os.time() - (result.Time or 0)) < SixHoursInSeconds then
+                return true
+            end
+        end
+    end
+    return false
+end
 
-local KeyBox = Instance.new("TextBox", KeyFrame)
-KeyBox.PlaceholderText = "Key'i buraya gir..."
-KeyBox.Text = ""
-KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
-KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
-KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
-KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeyBox.Font = Enum.Font.SourceSans
-KeyBox.TextSize = 16
-Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
-
-local VerifyBtn = Instance.new("TextButton", KeyFrame)
-VerifyBtn.Text = "Submit Key"
-VerifyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-VerifyBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
-VerifyBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 230)
-VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-VerifyBtn.Font = Enum.Font.SourceSansBold
-VerifyBtn.TextSize = 15
-Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
-
-local CopyBtn = Instance.new("TextButton", KeyFrame)
-CopyBtn.Text = "Discord (Key Al)"
-CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
-CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-CopyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-CopyBtn.Font = Enum.Font.SourceSans
-CopyBtn.TextSize = 14
-Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
-
-local StatusLabel = Instance.new("TextLabel", KeyFrame)
-StatusLabel.Size = UDim2.new(1, 0, 0, 25)
-StatusLabel.Position = UDim2.new(0, 0, 0.8, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-StatusLabel.TextSize = 13
-StatusLabel.Font = Enum.Font.SourceSansItalic
-StatusLabel.Text = "Key bekleniyor..."
-
-CopyBtn.MouseButton1Click:Connect(function()
-    setclipboard(DiscordKeyLink)
-    StatusLabel.Text = "Discord linki kopyalandı!"
-    StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-end)
+-- Yeni Key'i Bilgisayara Kaydetme
+local function SaveKey(enteredKey)
+    if writefile then
+        local data = {
+            Key = enteredKey,
+            Time = os.time()
+        }
+        pcall(function()
+            writefile(KeyFileName, HttpService:JSONEncode(data))
+        end)
+    end
+end
 
 ----------------------------------------------------
 -- 🌐 GLOBALS & ENGINE INITIALIZER
@@ -153,9 +126,10 @@ local function ForceEquipBestLogic()
     end)
 end
 
+----------------------------------------------------
+-- 🚀 MAIN HUB LOADER
+----------------------------------------------------
 local function LoadOrionHub()
-    KeySystemUI:Destroy()
-
     local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
 
     local Window = OrionLib:MakeWindow({
@@ -602,15 +576,90 @@ local function LoadOrionHub()
     OrionLib:Init()
 end
 
-VerifyBtn.MouseButton1Click:Connect(function()
-    local input = string.gsub(KeyBox.Text, "%s+", "")
-    if input == CorrectKey then
-        StatusLabel.Text = "Doğru Key! Yükleniyor..."
+----------------------------------------------------
+-- 🔐 CHECK SAVED KEY OR SHOW KEY UI
+----------------------------------------------------
+if CheckSavedKey() then
+    LoadOrionHub()
+else
+    local KeySystemUI = Instance.new("ScreenGui")
+    KeySystemUI.Name = "MoonHubKeyNative"
+    KeySystemUI.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+    local KeyFrame = Instance.new("Frame", KeySystemUI)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+    KeyFrame.Size = UDim2.new(0, 350, 0, 200)
+    KeyFrame.Active = true
+    KeyFrame.Draggable = true
+    Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
+
+    local KTitle = Instance.new("TextLabel", KeyFrame)
+    KTitle.Text = "🌙 MOON HUB | KEY SYSTEM (6H)"
+    KTitle.TextColor3 = Color3.fromRGB(0, 190, 255)
+    KTitle.TextSize = 16
+    KTitle.Font = Enum.Font.SourceSansBold
+    KTitle.Size = UDim2.new(1, 0, 0, 40)
+    KTitle.BackgroundTransparency = 1
+
+    local KeyBox = Instance.new("TextBox", KeyFrame)
+    KeyBox.PlaceholderText = "Key'i buraya gir..."
+    KeyBox.Text = ""
+    KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
+    KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
+    KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    KeyBox.Font = Enum.Font.SourceSans
+    KeyBox.TextSize = 16
+    Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
+
+    local VerifyBtn = Instance.new("TextButton", KeyFrame)
+    VerifyBtn.Text = "Submit Key"
+    VerifyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+    VerifyBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+    VerifyBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 230)
+    VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    VerifyBtn.Font = Enum.Font.SourceSansBold
+    VerifyBtn.TextSize = 15
+    Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
+
+    local CopyBtn = Instance.new("TextButton", KeyFrame)
+    CopyBtn.Text = "Discord (Key Al)"
+    CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+    CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
+    CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    CopyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    CopyBtn.Font = Enum.Font.SourceSans
+    CopyBtn.TextSize = 14
+    Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
+
+    local StatusLabel = Instance.new("TextLabel", KeyFrame)
+    StatusLabel.Size = UDim2.new(1, 0, 0, 25)
+    StatusLabel.Position = UDim2.new(0, 0, 0.8, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    StatusLabel.TextSize = 13
+    StatusLabel.Font = Enum.Font.SourceSansItalic
+    StatusLabel.Text = "Key bekleniyor..."
+
+    CopyBtn.MouseButton1Click:Connect(function()
+        setclipboard(DiscordKeyLink)
+        StatusLabel.Text = "Discord linki kopyalandı!"
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        task.wait(0.4)
-        LoadOrionHub()
-    else
-        StatusLabel.Text = "Geçersiz Key! Tekrar dene."
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end
-end)
+    end)
+
+    VerifyBtn.MouseButton1Click:Connect(function()
+        local input = string.gsub(KeyBox.Text, "%s+", "")
+        if input == CorrectKey then
+            StatusLabel.Text = "Doğru Key! Yükleniyor..."
+            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            SaveKey(input)
+            task.wait(0.4)
+            KeySystemUI:Destroy()
+            LoadOrionHub()
+        else
+            StatusLabel.Text = "Geçersiz veya Süresi Dolmuş Key!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+    end)
+end
