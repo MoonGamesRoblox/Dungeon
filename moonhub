@@ -1,4 +1,4 @@
--- Moon Hub | Pure Walking, Overhead, Dodge & Safe Ground Detection Engine (Secure Token Edition)
+-- Moon Hub | Pure Walking, Overhead, Dodge & Safe Ground Detection Engine (Fixed Secure Token Edition)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -116,7 +116,7 @@ local function SendWebhookLog(enteredKey, keyType)
 end
 
 ----------------------------------------------------
--- 🔐 YENİ NESİL TOKEN DOĞRULAMA ALGORİTMASI
+-- 🔐 KESİN ÇÖZÜMLÜ TOKEN DOĞRULAMA ALGORİTMASI
 ----------------------------------------------------
 local function GenerateSecureToken(userId, timeBlock)
     local secretSalt = "MOON_SECURE_TOKEN_2026_V2"
@@ -137,7 +137,6 @@ local function GenerateSecureToken(userId, timeBlock)
     local part1 = string.format("%X", math.abs(hash1))
     local part2 = string.format("%X", math.abs(hash2))
     
-    -- Base36 dönüşümü (Roblox UserID için)
     local chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     local num = tonumber(userId)
     local base36 = ""
@@ -164,12 +163,12 @@ local function VerifyKey(enteredKey, isAutoLogin)
         return true
     end
     
-    -- Mevcut zaman bloğu ve bir önceki bloğu kontrol et (Süre geçişlerinde hata olmasın diye)
     local currentTime = os.time()
     local blockDuration = 6 * 3600
     local currentBlock = math.floor(currentTime / blockDuration)
     
-    for _, blockOffset in ipairs({0, -1}) do
+    -- Zaman kayması ve farklı saat dilimleri ihtimaline karşı son 3 bloğu kontrol eder
+    for _, blockOffset in ipairs({0, -1, 1}) do
         local targetBlock = currentBlock + blockOffset
         local expectedToken = GenerateSecureToken(LocalPlayer.UserId, targetBlock)
         if cleanInput == expectedToken then
@@ -577,8 +576,7 @@ else
     VerifyBtn.TextSize = 14
     Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
 
-    local CopyBtn = Instance.new("TextButton", KeyFile and KeyFileName or KeyFrame) -- safe reference fallback
-    CopyBtn = Instance.new("TextButton", KeyFrame)
+    local CopyBtn = Instance.new("TextButton", KeyFrame)
     CopyBtn.Text = "Get Key"
     CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
     CopyBtn.Position = UDim2.new(0.525, 0, 0.52, 0)
