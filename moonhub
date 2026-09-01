@@ -1,4 +1,4 @@
--- Moon Hub | Pure Walking, Overhead, Dodge & Safe Ground Detection Engine (Fixed Pathfinding)
+-- Moon Hub | DQ Reborn Engine (English Version & Delayed Replay Fix)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -7,16 +7,14 @@ local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
-local PathfindingService = game:GetService("PathfindingService")
 
 local LocalPlayer = Players.LocalPlayer
 
 ----------------------------------------------------
--- 🔑 CONFIGURATION & DISCORD WEBHOOK
+-- 🔑 CONFIG & DISCORD WEBHOOK
 ----------------------------------------------------
 local KeyFileName = "MoonHub_DynamicKeySave.json"
 local SettingsFileName = "MoonHub_Settings.json"
@@ -28,16 +26,15 @@ local KEY_VALID_TIME = 6 * 3600
 local IsAdminSession = false
 
 ----------------------------------------------------
--- 💾 SETTINGS SAVE / LOAD SYSTEM
+-- 💾 SETTINGS (Default Distance: 8.5)
 ----------------------------------------------------
 _G.AutoKill = true
 _G.AutoAttack = true
 _G.AutoSkill = true
-_G.AutoDodge = true
-_G.OverheadHeight = 3.5
-
-_G.WalkSpeed = 32
-_G.JumpPower = 50
+_G.AttackDistance = 8.5
+_G.AutoStartDungeon = true
+_G.AutoReplay = true
+_G.WalkSpeed = 26
 _G.Noclip = false
 
 local function SaveSettings()
@@ -47,8 +44,9 @@ local function SaveSettings()
                 AutoKill = _G.AutoKill,
                 AutoAttack = _G.AutoAttack,
                 AutoSkill = _G.AutoSkill,
-                AutoDodge = _G.AutoDodge,
-                OverheadHeight = _G.OverheadHeight,
+                AttackDistance = _G.AttackDistance,
+                AutoStartDungeon = _G.AutoStartDungeon,
+                AutoReplay = _G.AutoReplay,
                 WalkSpeed = _G.WalkSpeed,
                 Noclip = _G.Noclip
             }
@@ -65,8 +63,9 @@ local function LoadSettings()
                 if decoded.AutoKill ~= nil then _G.AutoKill = decoded.AutoKill end
                 if decoded.AutoAttack ~= nil then _G.AutoAttack = decoded.AutoAttack end
                 if decoded.AutoSkill ~= nil then _G.AutoSkill = decoded.AutoSkill end
-                if decoded.AutoDodge ~= nil then _G.AutoDodge = decoded.AutoDodge end
-                if decoded.OverheadHeight ~= nil then _G.OverheadHeight = decoded.OverheadHeight end
+                if decoded.AttackDistance ~= nil then _G.AttackDistance = decoded.AttackDistance end
+                if decoded.AutoStartDungeon ~= nil then _G.AutoStartDungeon = decoded.AutoStartDungeon end
+                if decoded.AutoReplay ~= nil then _G.AutoReplay = decoded.AutoReplay end
                 if decoded.WalkSpeed ~= nil then _G.WalkSpeed = decoded.WalkSpeed end
                 if decoded.Noclip ~= nil then _G.Noclip = decoded.Noclip end
             end
@@ -90,15 +89,14 @@ local function SendWebhookLog(enteredKey, keyType)
 
             local payload = {
                 ["embeds"] = {{
-                    ["title"] = "🌙 Moon Hub | Verification & Auto-Start",
+                    ["title"] = "🌙 Moon Hub | Fluent Verification",
                     ["color"] = IsAdminSession and 10181046 or 3066993,
                     ["fields"] = {
                         { ["name"] = "Username", ["value"] = LocalPlayer.Name .. " (" .. LocalPlayer.DisplayName .. ")", ["inline"] = true },
                         { ["name"] = "User ID", ["value"] = tostring(LocalPlayer.UserId), ["inline"] = true },
                         { ["name"] = "Entered Key", ["value"] = "`" .. tostring(enteredKey) .. "`", ["inline"] = false },
                         { ["name"] = "Access Level", ["value"] = keyType, ["inline"] = true },
-                        { ["name"] = "Game", ["value"] = gameName, ["inline"] = true },
-                        { ["name"] = "Job ID", ["value"] = tostring(game.JobId), ["inline"] = false }
+                        { ["name"] = "Game", ["value"] = gameName, ["inline"] = true }
                     },
                     ["footer"] = { ["text"] = "Moon Hub Security System • 2026" },
                     ["timestamp"] = DateTime.now():ToIsoDate()
@@ -131,12 +129,12 @@ local function VerifyKey(enteredKey, isAutoLogin)
     
     if cleanInput == ADMIN_KEY then
         IsAdminSession = true
-        SendWebhookLog(cleanInput, isAutoLogin and "👑 ADMIN (Auto Login)" or "👑 ADMIN Access")
+        SendWebhookLog(cleanInput, isAutoLogin and "👑 ADMIN (Auto)" or "👑 ADMIN")
         return true
     end
     
     if cleanInput == GenerateValidKeyForCurrentBlock() or (string.sub(cleanInput, 1, 5) == "MOON-" and #cleanInput >= 9) then
-        SendWebhookLog(cleanInput, isAutoLogin and "🔑 User (Auto Login)" or "🔑 User Access")
+        SendWebhookLog(cleanInput, isAutoLogin and "🔑 User (Auto)" or "🔑 User")
         return true
     end
     
@@ -168,111 +166,89 @@ local function SaveKey(enteredKey)
 end
 
 ----------------------------------------------------
--- 🚀 MAIN HUB LOADER
+-- 🚀 MAIN HUB LOADER (FLUENT UI INTEGRATION)
 ----------------------------------------------------
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
 local function MainHubLoader()
-    local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
-
-    local WindowTitle = IsAdminSession and "🌙 Moon Hub [ADMIN] | DQ Reborn" or "🌙 Moon Hub | DQ Reborn"
-
-    local Window = OrionLib:MakeWindow({
-        Name = WindowTitle,
-        HidePremium = true,
-        SaveConfig = false,
-        ConfigFolder = "MoonHubDQ",
-        IntroEnabled = true,
-        IntroText = "Auto Starting Engines..."
+    local Window = Fluent:CreateWindow({
+        Title = IsAdminSession and "Moon Hub [ADMIN] | DQ Reborn" or "Moon Hub | DQ Reborn",
+        SubTitle = "by Moon Games",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(580, 420),
+        Acrylic = false,
+        Theme = "Darker",
+        MinimizeKey = Enum.KeyCode.LeftControl
     })
+
+    if Window.Watermark then Window.Watermark:SetVisible(false) end
 
     LocalPlayer.Idled:Connect(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
     end)
 
-    local CombatTab = Window:MakeTab({ Name = "Combat Engine", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+    local Tabs = {
+        Combat = Window:AddTab({ Title = "Combat Engine", Icon = "swords" }),
+        Auto = Window:AddTab({ Title = "Auto Dungeon", Icon = "play" }),
+        Movement = Window:AddTab({ Title = "Movement", Icon = "zap" })
+    }
 
-    CombatTab:AddToggle({
-        Name = "Auto Kill (Walking & Overhead)",
-        Default = _G.AutoKill,
-        Callback = function(Value) 
-            _G.AutoKill = Value 
-            SaveSettings()
-        end    
-    })
+    -- COMBAT OPTIONS
+    local ToggleKill = Tabs.Combat:AddToggle("AutoKill", { Title = "Auto Kill Engine", Default = _G.AutoKill })
+    ToggleKill:OnChanged(function(Value) _G.AutoKill = Value SaveSettings() end)
 
-    CombatTab:AddSlider({
-        Name = "Overhead Height",
-        Min = 2,
-        Max = 8,
-        Default = _G.OverheadHeight,
-        Increment = 1,
-        Callback = function(Value) 
-            _G.OverheadHeight = Value 
-            SaveSettings()
-        end    
+    local SliderDistance = Tabs.Combat:AddSlider("AttackDistance", {
+        Title = "Kill & Skill Distance",
+        Description = "Adjusts proximity to monsters and skill triggering distance",
+        Default = _G.AttackDistance,
+        Min = 1,
+        Max = 15,
+        Rounding = 1
     })
+    SliderDistance:OnChanged(function(Value) _G.AttackDistance = Value SaveSettings() end)
 
-    CombatTab:AddToggle({ 
-        Name = "Auto Swing (Click Fix)", 
-        Default = _G.AutoAttack, 
-        Callback = function(Value) 
-            _G.AutoAttack = Value 
-            SaveSettings()
-        end 
-    })
-    
-    CombatTab:AddToggle({ 
-        Name = "Auto Dodge Attacks", 
-        Default = _G.AutoDodge, 
-        Callback = function(Value) 
-            _G.AutoDodge = Value 
-            SaveSettings()
-        end 
-    })
-    
-    CombatTab:AddToggle({ 
-        Name = "Smart Skill Cast", 
-        Default = _G.AutoSkill, 
-        Callback = function(Value) 
-            _G.AutoSkill = Value 
-            SaveSettings()
-        end 
-    })
+    local ToggleSwing = Tabs.Combat:AddToggle("AutoSwing", { Title = "Auto Swing", Default = _G.AutoAttack })
+    ToggleSwing:OnChanged(function(Value) _G.AutoSwing = Value SaveSettings() end)
 
-    local MovementTab = Window:MakeTab({ Name = "Movement", Icon = "rbxassetid://4483345998", PremiumOnly = false })
-    MovementTab:AddSlider({ 
-        Name = "WalkSpeed", 
-        Min = 16, 
-        Max = 100, 
-        Default = _G.WalkSpeed, 
-        Increment = 1, 
-        Callback = function(Value) 
-            _G.WalkSpeed = Value 
-            SaveSettings()
-        end 
+    local ToggleSkill = Tabs.Combat:AddToggle("AutoSkill", { Title = "Auto Skill", Default = _G.AutoSkill })
+    ToggleSkill:OnChanged(function(Value) _G.AutoSkill = Value SaveSettings() end)
+
+    -- AUTO DUNGEON OPTIONS
+    local ToggleStart = Tabs.Auto:AddToggle("AutoStart", { Title = "Auto Start Dungeon", Default = _G.AutoStartDungeon })
+    ToggleStart:OnChanged(function(Value) _G.AutoStartDungeon = Value SaveSettings() end)
+
+    local ToggleReplay = Tabs.Auto:AddToggle("AutoReplay", { Title = "Auto Replay", Default = _G.AutoReplay })
+    ToggleReplay:OnChanged(function(Value) _G.AutoReplay = Value SaveSettings() end)
+
+    -- MOVEMENT OPTIONS
+    local SliderSpeed = Tabs.Movement:AddSlider("WalkSpeed", {
+        Title = "Walk Speed",
+        Default = _G.WalkSpeed,
+        Min = 16,
+        Max = 120,
+        Rounding = 0
     })
-    
-    MovementTab:AddToggle({ 
-        Name = "Noclip", 
-        Default = _G.Noclip, 
-        Callback = function(Value) 
-            _G.Noclip = Value 
-            SaveSettings()
-        end 
-    })
+    SliderSpeed:OnChanged(function(Value) _G.WalkSpeed = Value SaveSettings() end)
+
+    local ToggleNoclip = Tabs.Movement:AddToggle("Noclip", { Title = "Noclip (Walk Through Walls)", Default = _G.Noclip })
+    ToggleNoclip:OnChanged(function(Value) _G.Noclip = Value SaveSettings() end)
 
     ----------------------------------------------------
-    -- 🎯 STABILIZED WALKING & OVERHEAD ENGINE (SMART PATHFINDING)
+    -- 🎯 PERFECT ABOVE-TARGET MOVEMENT ENGINE
     ----------------------------------------------------
+    local function GetDungeonMonsters()
+        return Workspace:FindFirstChild("dungeon") or Workspace:FindFirstChild("Dungeon") or Workspace:FindFirstChild("Monsters") or Workspace
+    end
+
     local function GetNearestEnemy()
         local nearest = nil
         local shortestDistance = math.huge
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
 
-        local dungeonFolder = Workspace:FindFirstChild("dungeon") or Workspace:FindFirstChild("Dungeon") or Workspace:FindFirstChild("Monsters") or Workspace
-
-        for _, obj in pairs(dungeonFolder:GetDescendants()) do
+        local folder = GetDungeonMonsters()
+        for _, obj in pairs(folder:GetDescendants()) do
             if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
                 if obj.Name ~= LocalPlayer.Name and obj.Humanoid.Health > 0 then
                     local dist = (char.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude
@@ -286,207 +262,89 @@ local function MainHubLoader()
         return nearest
     end
 
-    local lastMoveUpdate = 0
-    local isDodging = false
-    local isOverheading = false
-    
-    -- Pathfinding nesnesi ve değişkenleri
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 2,
-        AgentHeight = 5,
-        AgentCanJump = true,
-        WaypointSpacing = 4
-    })
-    local currentWaypoints = {}
-    local currentWaypointIndex = 1
-    local lastPathCompute = 0
-
-    RunService.Heartbeat:Connect(function()
-        if _G.AutoKill and not isDodging then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                    local target = GetNearestEnemy()
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        local targetPos = target.HumanoidRootPart.Position
-                        local myPos = char.HumanoidRootPart.Position
-                        local dist = (myPos - targetPos).Magnitude
-
-                        target.HumanoidRootPart.CanCollide = false
-
-                        if dist > 8 then
-                            isOverheading = false
-                            
-                            -- Akıllı Pathfinding (Duvarları aşma sistemi)
-                            if os.clock() - lastPathCompute > 0.8 then
-                                lastPathCompute = os.clock()
-                                pcall(function()
-                                    path:ComputeAsync(myPos, targetPos)
-                                    if path.Status == Enum.PathStatus.Success then
-                                        currentWaypoints = path:GetWaypoints()
-                                        currentWaypointIndex = 2 -- İlk nokta genelde karakterin kendisidir
-                                    else
-                                        -- Yol hesaplanamazsa direkt MoveTo kullan
-                                        currentWaypoints = {}
-                                        char.Humanoid:MoveTo(targetPos)
-                                    end
-                                end)
-                            end
-
-                            if #currentWaypoints > 0 and currentWaypointIndex <= #currentWaypoints then
-                                local waypoint = currentWaypoints[currentWaypointIndex]
-                                if waypoint then
-                                    char.Humanoid:MoveTo(waypoint.Position)
-                                    if waypoint.Action == Enum.PathWaypointAction.Jump then
-                                        char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                    end
-                                    
-                                    -- Mevcut noktaya yaklaşıldıysa bir sonrakine geç
-                                    if (myPos - waypoint.Position).Magnitude < 4 then
-                                        currentWaypointIndex = currentWaypointIndex + 1
-                                    end
-                                end
-                            else
-                                if os.clock() - lastMoveUpdate > 0.15 then
-                                    char.Humanoid:MoveTo(targetPos)
-                                    lastMoveUpdate = os.clock()
-                                end
-                            end
-                        else
-                            isOverheading = true
-                            currentWaypoints = {}
-                            local overheadPos = targetPos + Vector3.new(0, _G.OverheadHeight or 3.5, 0)
-                            char.HumanoidRootPart.CFrame = CFrame.new(overheadPos, targetPos)
-                            
-                            -- Yerçekimi ivmesini ve hızını tamamen sıfırla
-                            char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-                            char.HumanoidRootPart.AssemblyAngularVelocity = Vector3.zero
-                        end
-                    else
-                        isOverheading = false
-                        currentWaypoints = {}
-                    end
+    local function AreMonstersAlive()
+        local folder = GetDungeonMonsters()
+        for _, obj in pairs(folder:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 then
+                if obj.Name ~= LocalPlayer.Name then
+                    return true
                 end
-            end)
-        else
-            isOverheading = false
-            currentWaypoints = {}
-        end
-    end)
-
-    -- ⚡ SMART AUTO DODGE ENGINE
-    task.spawn(function()
-        while task.wait(0.1) do
-            if _G.AutoDodge then
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        local myPos = char.HumanoidRootPart.Position
-                        
-                        for _, obj in pairs(Workspace:GetDescendants()) do
-                            if obj:IsA("BasePart") and (obj.Name:find("Spell") or obj.Name:find("Hitbox") or obj.Name:find("Red") or obj.Name:find("Area")) then
-                                local dist = (myPos - obj.Position).Magnitude
-                                if dist < 7 then
-                                    isDodging = true
-                                    local escapeDir = (myPos - obj.Position).Unit * 12
-                                    char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(escapeDir.X, 0, escapeDir.Z)
-                                    task.wait(0.2)
-                                    isDodging = false
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end)
             end
         end
-    end)
-
-    -- ⚔️ SAFE AUTO SWING ENGINE
-    task.spawn(function()
-        while task.wait(0.15) do
-            if _G.AutoAttack and _G.AutoKill then
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChildOfClass("Humanoid") then
-                        local tool = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-                        if tool then
-                            if tool.Parent ~= char then
-                                char.Humanoid:EquipTool(tool)
-                                task.wait(0.05)
-                            end
-                            tool:Activate()
-                        end
-
-                        local camera = Workspace.CurrentCamera
-                        if camera then
-                            local centerPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-                            VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, true, game, 0)
-                            task.wait(0.02)
-                            VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, false, game, 0)
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    -- Auto Skill Cast
-    task.spawn(function()
-        while task.wait(0.3) do
-            if _G.AutoSkill and _G.AutoKill then
-                pcall(function()
-                    local target = GetNearestEnemy()
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                        task.wait(0.02)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        
-                        task.wait(0.05)
-
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-                        task.wait(0.02)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
-                    end
-                end)
-            end
-        end
-    end)
-
-    ----------------------------------------------------
-    -- 🛡️ AKILLI ZEMİN KONTROLÜ VE ANTI-FALL LOOP
-    ----------------------------------------------------
-    local function IsGroundBelow(hrpPos)
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        if LocalPlayer.Character then
-            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-        end
-        local result = Workspace:Raycast(hrpPos, Vector3.new(0, -5, 0), raycastParams)
-        return result ~= nil
+        return false
     end
 
+    local lastCheckPos = Vector3.zero
+    local stuckTicks = 0
+
+    task.spawn(function()
+        while task.wait(0.03) do
+            if _G.AutoKill then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+                        local hum = char.Humanoid
+                        local hrp = char.HumanoidRootPart
+
+                        hum.AutoRotate = false
+
+                        local target = GetNearestEnemy()
+                        if target and target:FindFirstChild("HumanoidRootPart") then
+                            local targetHrp = target.HumanoidRootPart
+                            local targetPos = targetHrp.Position
+                            local myPos = hrp.Position
+
+                            local targetHeight = 3
+                            if target:IsA("Model") then
+                                targetHeight = target:GetExtentsSize().Y / 2
+                            end
+                            
+                            local destinationAbove = targetPos + Vector3.new(0, targetHeight + 3, 0)
+
+                            local flatLookTarget = Vector3.new(targetPos.X, myPos.Y, targetPos.Z)
+                            if (flatLookTarget - myPos).Magnitude > 0.05 then
+                                hrp.CFrame = CFrame.lookAt(myPos, flatLookTarget)
+                            end
+
+                            local horizDist = (Vector3.new(myPos.X, 0, myPos.Z) - Vector3.new(targetPos.X, 0, targetPos.Z)).Magnitude
+                            local maxDist = tonumber(_G.AttackDistance) or 8.5
+
+                            if horizDist > maxDist then
+                                hum:MoveTo(destinationAbove)
+
+                                if (hrp.Position - lastCheckPos).Magnitude < 0.2 then
+                                    stuckTicks = stuckTicks + 1
+                                    if stuckTicks >= 6 then
+                                        hum.Jump = true
+                                        stuckTicks = 0
+                                    end
+                                else
+                                    stuckTicks = 0
+                                end
+                                lastCheckPos = hrp.Position
+                            else
+                                hrp.CFrame = CFrame.new(destinationAbove, destinationAbove + hrp.CFrame.LookVector)
+                            end
+                        else
+                            hum.AutoRotate = true
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- SPEED ENGINE & NOCLIP
     RunService.Stepped:Connect(function()
         pcall(function()
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
-                char.Humanoid.WalkSpeed = _G.WalkSpeed or 32
-                
-                local hrpPos = char.HumanoidRootPart.Position
-                local nearGround = IsGroundBelow(hrpPos)
-                
-                for _, part in pairs(char:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        if nearGround and not isOverheading then
-                            if part.Name == "HumanoidRootPart" or part.Name == "Torso" or part.Name == "UpperTorso" or part.Name == "LowerTorso" then
-                                part.CanCollide = true
-                            end
-                        else
-                            if _G.Noclip or isOverheading then
-                                part.CanCollide = false
-                            else
-                                part.CanCollide = true
-                            end
+                char.Humanoid.WalkSpeed = tonumber(_G.WalkSpeed) or 26
+
+                if _G.Noclip then
+                    for _, part in pairs(char:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
                         end
                     end
                 end
@@ -494,93 +352,215 @@ local function MainHubLoader()
         end)
     end)
 
-    OrionLib:Init()
+    -- AUTO ATTACK
+    task.spawn(function()
+        while task.wait(0.1) do
+            if _G.AutoAttack and _G.AutoKill then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChildOfClass("Humanoid") then
+                        local tool = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+                        if tool then
+                            if tool.Parent ~= char then char.Humanoid:EquipTool(tool) end
+                            tool:Activate()
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- AUTO SKILL (Dynamic Distance)
+    task.spawn(function()
+        while task.wait(0.15) do
+            if _G.AutoSkill and _G.AutoKill then
+                pcall(function()
+                    local target = GetNearestEnemy()
+                    local char = LocalPlayer.Character
+                    if target and target:FindFirstChild("HumanoidRootPart") and char and char:FindFirstChild("HumanoidRootPart") then
+                        local dist = (char.HumanoidRootPart.Position - target.HumanoidRootPart.Position).Magnitude
+                        local maxDist = (tonumber(_G.AttackDistance) or 8.5) + 15
+                        if dist <= maxDist then
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                            task.wait(0.05)
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                            task.wait(0.02)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    ----------------------------------------------------
+    -- 🔄 AUTO START & DELAYED LOOT REPLAY ENGINE
+    ----------------------------------------------------
+    local function ForceClickButton(btn)
+        if btn and (btn:IsA("TextButton") or btn:IsA("ImageButton")) then
+            pcall(function()
+                for _, connection in pairs(getconnections(btn.MouseButton1Click)) do
+                    connection:Fire()
+                end
+                for _, connection in pairs(getconnections(btn.Activated)) do
+                    connection:Fire()
+                end
+                
+                local pos = btn.AbsolutePosition + (btn.AbsoluteSize / 2)
+                VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+            end)
+        end
+    end
+
+    local dungeonFinishedTime = nil
+
+    task.spawn(function()
+        while task.wait(0.8) do
+            pcall(function()
+                local monstersAlive = AreMonstersAlive()
+
+                if not monstersAlive and not dungeonFinishedTime then
+                    dungeonFinishedTime = tick()
+                elseif monstersAlive then
+                    dungeonFinishedTime = nil
+                end
+
+                -- Wait 2.2 seconds after boss defeat for loot screen/rewards
+                local operatesReplay = _G.AutoReplay and dungeonFinishedTime and (tick() - dungeonFinishedTime >= 2.2)
+
+                if operatesReplay or _G.AutoStartDungeon then
+                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        for _, gui in pairs(playerGui:GetDescendants()) do
+                            if gui:IsA("GuiObject") and gui.Visible then
+                                local textCombined = string.lower(gui.Name)
+                                
+                                for _, child in pairs(gui:GetChildren()) do
+                                    if child:IsA("TextLabel") then
+                                        textCombined = textCombined .. " " .. string.lower(child.Text)
+                                    end
+                                end
+                                if gui:IsA("TextButton") then
+                                    textCombined = textCombined .. " " .. string.lower(gui.Text)
+                                end
+
+                                if operatesReplay then
+                                    if textCombined:find("replay") or textCombined:find("retry") or textCombined:find("again") or textCombined:find("tekrar") then
+                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        if btnToClick then ForceClickButton(btnToClick) end
+                                    end
+                                    if textCombined == "yes" or textCombined == "evet" or textCombined:find("confirm") or textCombined:find("accept") then
+                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        if btnToClick then ForceClickButton(btnToClick) end
+                                    end
+                                end
+
+                                if _G.AutoStartDungeon then
+                                    if textCombined:find("start") or textCombined:find("ready") or textCombined:find("başla") then
+                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        if btnToClick then ForceClickButton(btnToClick) end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if operatesReplay then
+                        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes then
+                            for _, remote in pairs(remotes:GetChildren()) do
+                                if remote:IsA("RemoteEvent") then
+                                    local rName = string.lower(remote.Name)
+                                    if rName:find("replay") or rName:find("retry") or rName:find("playagain") then
+                                        remote:FireServer()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+
+    Fluent:Notify({
+        Title = "Moon Hub",
+        Content = "Script loaded successfully!",
+        Duration = 4
+    })
 end
 
 ----------------------------------------------------
--- 🔐 USER KEY INITIALIZATION & AUTO-START
+-- 🔐 KEY SYSTEM CHECK
 ----------------------------------------------------
 if CheckSavedKey() then
     MainHubLoader()
 else
-    local KeySystemUI = Instance.new("ScreenGui")
-    KeySystemUI.Name = "MoonHubKeyUI"
-    KeySystemUI.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+    local KeyWindow = Fluent:CreateWindow({
+        Title = "Moon Hub | Verification",
+        SubTitle = "Key System",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(450, 260),
+        Acrylic = false,
+        Theme = "Darker",
+        MinimizeKey = Enum.KeyCode.LeftControl
+    })
 
-    local KeyFrame = Instance.new("Frame", KeySystemUI)
-    KeyFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
-    KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -110)
-    KeyFrame.Size = UDim2.new(0, 350, 0, 220)
-    KeyFrame.Active = true
-    KeyFrame.Draggable = true
-    Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
+    local KeyTab = KeyWindow:AddTab({ Title = "Authentication", Icon = "key" })
 
-    local KTitle = Instance.new("TextLabel", KeyFrame)
-    KTitle.Text = "🌙 MOON HUB | KEY SYSTEM"
-    KTitle.TextColor3 = Color3.fromRGB(168, 85, 247)
-    KTitle.TextSize = 15
-    KTitle.Font = Enum.Font.SourceSansBold
-    KTitle.Size = UDim2.new(1, 0, 0, 40)
-    KTitle.BackgroundTransparency = 1
+    local InputKey = ""
 
-    local KeyBox = Instance.new("TextBox", KeyFrame)
-    KeyBox.PlaceholderText = "Enter Key..."
-    KeyBox.Text = ""
-    KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
-    KeyBox.Position = UDim2.new(0.075, 0, 0.24, 0)
-    KeyBox.BackgroundColor3 = Color3.fromRGB(24, 25, 36)
-    KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    KeyBox.Font = Enum.Font.SourceSans
-    KeyBox.TextSize = 15
-    Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
-
-    local VerifyBtn = Instance.new("TextButton", KeyFrame)
-    VerifyBtn.Text = "Verify Key"
-    VerifyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-    VerifyBtn.Position = UDim2.new(0.075, 0, 0.52, 0)
-    VerifyBtn.BackgroundColor3 = Color3.fromRGB(168, 85, 247)
-    VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    VerifyBtn.Font = Enum.Font.SourceSansBold
-    VerifyBtn.TextSize = 14
-    Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
-
-    local CopyBtn = Instance.new("TextButton", KeyFrame)
-    CopyBtn.Text = "Get Key"
-    CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-    CopyBtn.Position = UDim2.new(0.525, 0, 0.52, 0)
-    CopyBtn.BackgroundColor3 = Color3.fromRGB(35, 36, 50)
-    CopyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    CopyBtn.Font = Enum.Font.SourceSans
-    CopyBtn.TextSize = 14
-    Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
-
-    local StatusLabel = Instance.new("TextLabel", KeyFrame)
-    StatusLabel.Size = UDim2.new(1, 0, 0, 25)
-    StatusLabel.Position = UDim2.new(0, 0, 0.78, 0)
-    StatusLabel.BackgroundTransparency = 1
-    StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
-    StatusLabel.TextSize = 12
-    StatusLabel.Font = Enum.Font.SourceSansItalic
-    StatusLabel.Text = "Please enter key to launch script."
-
-    CopyBtn.MouseButton1Click:Connect(function()
-        setclipboard(LOOTLABS_LINK)
-        StatusLabel.Text = "LootLabs link copied to clipboard!"
-        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    end)
-
-    VerifyBtn.MouseButton1Click:Connect(function()
-        local inputKey = KeyBox.Text
-        if VerifyKey(inputKey, false) then
-            StatusLabel.Text = "Key Accepted! Loading..."
-            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            SaveKey(inputKey)
-            task.wait(0.5)
-            KeySystemUI:Destroy()
-            MainHubLoader()
-        else
-            StatusLabel.Text = "Invalid or Expired Key!"
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    KeyTab:AddInput("KeyInput", {
+        Title = "Enter License Key",
+        Default = "",
+        Placeholder = "MOON-XXXXXX",
+        Numeric = false,
+        Finished = false,
+        Callback = function(Value)
+            InputKey = Value
         end
-    end)
+    })
+
+    KeyTab:AddButton({
+        Title = "Verify Key",
+        Description = "Validate license key to access the hub",
+        Callback = function()
+            if VerifyKey(InputKey, false) then
+                SaveKey(InputKey)
+                Fluent:Notify({
+                    Title = "Moon Hub Security",
+                    Content = "Key verified! Loading...",
+                    Duration = 3
+                })
+                task.wait(1)
+                KeyWindow:Destroy()
+                MainHubLoader()
+            else
+                Fluent:Notify({
+                    Title = "Moon Hub Security",
+                    Content = "Invalid key! Please try again.",
+                    Duration = 3
+                })
+            end
+        end
+    })
+
+    KeyTab:AddButton({
+        Title = "Get Key (Copy Link)",
+        Description = "Copy LootLabs URL to clipboard",
+        Callback = function()
+            if setclipboard then
+                setclipboard(LOOTLABS_LINK)
+                Fluent:Notify({
+                    Title = "Moon Hub",
+                    Content = "Key link copied to clipboard!",
+                    Duration = 3
+                })
+            end
+        end
+    })
 end
