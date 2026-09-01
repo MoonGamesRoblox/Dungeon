@@ -1,4 +1,4 @@
--- Moon Hub | DQ Reborn Engine (English Version & Delayed Replay Fix)
+-- Moon Hub | DQ Reborn Engine (Fixed Watermark Error)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -26,7 +26,7 @@ local KEY_VALID_TIME = 6 * 3600
 local IsAdminSession = false
 
 ----------------------------------------------------
--- 💾 SETTINGS (Default Distance: 8.5)
+-- 💾 SETTINGS SYSTEM
 ----------------------------------------------------
 _G.AutoKill = true
 _G.AutoAttack = true
@@ -76,7 +76,7 @@ end
 LoadSettings()
 
 ----------------------------------------------------
--- 📡 WEBHOOK SYSTEM
+-- 📡 WEBHOOK & SECURITY SYSTEM
 ----------------------------------------------------
 local function SendWebhookLog(enteredKey, keyType)
     task.spawn(function()
@@ -118,8 +118,9 @@ local function GenerateValidKeyForCurrentBlock()
     local secret = "MOON_HUB_SECRET_SALT_2026"
     local str = tostring(timeBlock) .. "_" .. tostring(LocalPlayer.UserId) .. "_" .. secret
     local hash = 0
-    for i = 1, #str do hash = (hash * 31 + string.byte(str, i)) % 4294967296 end
-    if hash > 2147483647 then hash = hash - 4294967296 end
+    for i = 1, #str do 
+        hash = (hash * 31 + string.byte(str, i)) % 4294967296 
+    end
     return "MOON-" .. string.format("%X", math.abs(hash))
 end
 
@@ -181,7 +182,12 @@ local function MainHubLoader()
         MinimizeKey = Enum.KeyCode.LeftControl
     })
 
-    if Window.Watermark then Window.Watermark:SetVisible(false) end
+    -- Watermark kontrolü eklendi (Hata çözüldü)
+    pcall(function()
+        if Window.Watermark then 
+            Window.Watermark:SetVisible(false) 
+        end
+    end)
 
     LocalPlayer.Idled:Connect(function()
         VirtualUser:CaptureController()
@@ -209,7 +215,7 @@ local function MainHubLoader()
     SliderDistance:OnChanged(function(Value) _G.AttackDistance = Value SaveSettings() end)
 
     local ToggleSwing = Tabs.Combat:AddToggle("AutoSwing", { Title = "Auto Swing", Default = _G.AutoAttack })
-    ToggleSwing:OnChanged(function(Value) _G.AutoSwing = Value SaveSettings() end)
+    ToggleSwing:OnChanged(function(Value) _G.AutoAttack = Value SaveSettings() end)
 
     local ToggleSkill = Tabs.Combat:AddToggle("AutoSkill", { Title = "Auto Skill", Default = _G.AutoSkill })
     ToggleSkill:OnChanged(function(Value) _G.AutoSkill = Value SaveSettings() end)
@@ -235,7 +241,7 @@ local function MainHubLoader()
     ToggleNoclip:OnChanged(function(Value) _G.Noclip = Value SaveSettings() end)
 
     ----------------------------------------------------
-    -- 🎯 PERFECT ABOVE-TARGET MOVEMENT ENGINE
+    -- 🎯 TARGET MOVEMENT ENGINE
     ----------------------------------------------------
     local function GetDungeonMonsters()
         return Workspace:FindFirstChild("dungeon") or Workspace:FindFirstChild("Dungeon") or Workspace:FindFirstChild("Monsters") or Workspace
@@ -286,10 +292,9 @@ local function MainHubLoader()
                         local hum = char.Humanoid
                         local hrp = char.HumanoidRootPart
 
-                        hum.AutoRotate = false
-
                         local target = GetNearestEnemy()
                         if target and target:FindFirstChild("HumanoidRootPart") then
+                            hum.AutoRotate = false
                             local targetHrp = target.HumanoidRootPart
                             local targetPos = targetHrp.Position
                             local myPos = hrp.Position
@@ -300,8 +305,8 @@ local function MainHubLoader()
                             end
                             
                             local destinationAbove = targetPos + Vector3.new(0, targetHeight + 3, 0)
-
                             local flatLookTarget = Vector3.new(targetPos.X, myPos.Y, targetPos.Z)
+
                             if (flatLookTarget - myPos).Magnitude > 0.05 then
                                 hrp.CFrame = CFrame.lookAt(myPos, flatLookTarget)
                             end
@@ -311,7 +316,6 @@ local function MainHubLoader()
 
                             if horizDist > maxDist then
                                 hum:MoveTo(destinationAbove)
-
                                 if (hrp.Position - lastCheckPos).Magnitude < 0.2 then
                                     stuckTicks = stuckTicks + 1
                                     if stuckTicks >= 6 then
@@ -342,7 +346,7 @@ local function MainHubLoader()
                 char.Humanoid.WalkSpeed = tonumber(_G.WalkSpeed) or 26
 
                 if _G.Noclip then
-                    for _, part in pairs(char:GetChildren()) do
+                    for _, part in pairs(char:GetDescendants()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
                         end
@@ -370,7 +374,7 @@ local function MainHubLoader()
         end
     end)
 
-    -- AUTO SKILL (Dynamic Distance)
+    -- AUTO SKILL
     task.spawn(function()
         while task.wait(0.15) do
             if _G.AutoSkill and _G.AutoKill then
@@ -396,16 +400,14 @@ local function MainHubLoader()
     end)
 
     ----------------------------------------------------
-    -- 🔄 AUTO START & DELAYED LOOT REPLAY ENGINE
+    -- 🔄 AUTO START & REPLAY ENGINE
     ----------------------------------------------------
     local function ForceClickButton(btn)
         if btn and (btn:IsA("TextButton") or btn:IsA("ImageButton")) then
             pcall(function()
-                for _, connection in pairs(getconnections(btn.MouseButton1Click)) do
-                    connection:Fire()
-                end
-                for _, connection in pairs(getconnections(btn.Activated)) do
-                    connection:Fire()
+                if getconnections then
+                    for _, connection in pairs(getconnections(btn.MouseButton1Click)) do connection:Fire() end
+                    for _, connection in pairs(getconnections(btn.Activated)) do connection:Fire() end
                 end
                 
                 local pos = btn.AbsolutePosition + (btn.AbsoluteSize / 2)
@@ -429,7 +431,6 @@ local function MainHubLoader()
                     dungeonFinishedTime = nil
                 end
 
-                -- Wait 2.2 seconds after boss defeat for loot screen/rewards
                 local operatesReplay = _G.AutoReplay and dungeonFinishedTime and (tick() - dungeonFinishedTime >= 2.2)
 
                 if operatesReplay or _G.AutoStartDungeon then
@@ -440,28 +441,24 @@ local function MainHubLoader()
                                 local textCombined = string.lower(gui.Name)
                                 
                                 for _, child in pairs(gui:GetChildren()) do
-                                    if child:IsA("TextLabel") then
-                                        textCombined = textCombined .. " " .. string.lower(child.Text)
-                                    end
+                                    if child:IsA("TextLabel") then textCombined = textCombined .. " " .. string.lower(child.Text) end
                                 end
-                                if gui:IsA("TextButton") then
-                                    textCombined = textCombined .. " " .. string.lower(gui.Text)
-                                end
+                                if gui:IsA("TextButton") then textCombined = textCombined .. " " .. string.lower(gui.Text) end
 
                                 if operatesReplay then
                                     if textCombined:find("replay") or textCombined:find("retry") or textCombined:find("again") or textCombined:find("tekrar") then
-                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        local btnToClick = (gui:IsA("TextButton") or gui:IsA("ImageButton")) and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
                                         if btnToClick then ForceClickButton(btnToClick) end
                                     end
                                     if textCombined == "yes" or textCombined == "evet" or textCombined:find("confirm") or textCombined:find("accept") then
-                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        local btnToClick = (gui:IsA("TextButton") or gui:IsA("ImageButton")) and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
                                         if btnToClick then ForceClickButton(btnToClick) end
                                     end
                                 end
 
                                 if _G.AutoStartDungeon then
                                     if textCombined:find("start") or textCombined:find("ready") or textCombined:find("başla") then
-                                        local btnToClick = gui:IsA("TextButton") or gui:IsA("ImageButton") and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
+                                        local btnToClick = (gui:IsA("TextButton") or gui:IsA("ImageButton")) and gui or gui:FindFirstAncestorOfClass("TextButton") or gui:FindFirstAncestorOfClass("ImageButton")
                                         if btnToClick then ForceClickButton(btnToClick) end
                                     end
                                 end
