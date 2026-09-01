@@ -1,4 +1,4 @@
--- Moon Hub | Pure Walking, Overhead, Dodge & Safe Ground Detection Engine (Fixed Pathfinding)
+-- Moon Hub | Pure Walking, Overhead, Dodge & Safe Ground Detection Engine (Secure Token Edition)
 
 repeat task.wait() until game:IsLoaded()
 
@@ -115,14 +115,43 @@ local function SendWebhookLog(enteredKey, keyType)
     end)
 end
 
-local function GenerateValidKeyForCurrentBlock()
-    local timeBlock = math.floor(os.time() / (6 * 3600))
-    local secret = "MOON_HUB_SECRET_SALT_2026"
-    local str = tostring(timeBlock) .. "_" .. tostring(LocalPlayer.UserId) .. "_" .. secret
-    local hash = 0
-    for i = 1, #str do hash = (hash * 31 + string.byte(str, i)) % 4294967296 end
-    if hash > 2147483647 then hash = hash - 4294967296 end
-    return "MOON-" .. string.format("%X", math.abs(hash))
+----------------------------------------------------
+-- 🔐 YENİ NESİL TOKEN DOĞRULAMA ALGORİTMASI
+----------------------------------------------------
+local function GenerateSecureToken(userId, timeBlock)
+    local secretSalt = "MOON_SECURE_TOKEN_2026_V2"
+    local rawString = tostring(userId) .. "_" .. tostring(timeBlock) .. "_" .. secretSalt
+    
+    local hash1 = 0
+    local hash2 = 5381
+
+    for i = 1, #rawString do
+        local char = string.byte(rawString, i)
+        hash1 = ((hash1 * 32 - hash1) + char) % 4294967296
+        if hash1 > 2147483647 then hash1 = hash1 - 4294967296 end
+        
+        hash2 = ((hash2 * 32 + hash2) + char) % 4294967296
+        if hash2 > 2147483647 then hash2 = hash2 - 4294967296 end
+    end
+
+    local part1 = string.format("%X", math.abs(hash1))
+    local part2 = string.format("%X", math.abs(hash2))
+    
+    -- Base36 dönüşümü (Roblox UserID için)
+    local chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    local num = tonumber(userId)
+    local base36 = ""
+    if num == 0 then
+        base36 = "0"
+    else
+        while num > 0 do
+            local remainder = (num % 36) + 1
+            base36 = string.sub(chars, remainder, remainder) .. base36
+            num = math.floor(num / 36)
+        end
+    end
+
+    return "MOON-" .. string.sub(part1, 1, 4) .. "-" .. string.sub(part2, 1, 4) .. "-" .. base36
 end
 
 local function VerifyKey(enteredKey, isAutoLogin)
@@ -135,9 +164,18 @@ local function VerifyKey(enteredKey, isAutoLogin)
         return true
     end
     
-    if cleanInput == GenerateValidKeyForCurrentBlock() or (string.sub(cleanInput, 1, 5) == "MOON-" and #cleanInput >= 9) then
-        SendWebhookLog(cleanInput, isAutoLogin and "🔑 User (Auto Login)" or "🔑 User Access")
-        return true
+    -- Mevcut zaman bloğu ve bir önceki bloğu kontrol et (Süre geçişlerinde hata olmasın diye)
+    local currentTime = os.time()
+    local blockDuration = 6 * 3600
+    local currentBlock = math.floor(currentTime / blockDuration)
+    
+    for _, blockOffset in ipairs({0, -1}) do
+        local targetBlock = currentBlock + blockOffset
+        local expectedToken = GenerateSecureToken(LocalPlayer.UserId, targetBlock)
+        if cleanInput == expectedToken then
+            SendWebhookLog(cleanInput, isAutoLogin and "🔑 User (Auto Login)" or "🔑 User Access")
+            return true
+        end
     end
     
     return false
@@ -290,7 +328,6 @@ local function MainHubLoader()
     local isDodging = false
     local isOverheading = false
     
-    -- Pathfinding nesnesi ve değişkenleri
     local path = PathfindingService:CreatePath({
         AgentRadius = 2,
         AgentHeight = 5,
@@ -317,16 +354,14 @@ local function MainHubLoader()
                         if dist > 8 then
                             isOverheading = false
                             
-                            -- Akıllı Pathfinding (Duvarları aşma sistemi)
                             if os.clock() - lastPathCompute > 0.8 then
                                 lastPathCompute = os.clock()
                                 pcall(function()
                                     path:ComputeAsync(myPos, targetPos)
                                     if path.Status == Enum.PathStatus.Success then
                                         currentWaypoints = path:GetWaypoints()
-                                        currentWaypointIndex = 2 -- İlk nokta genelde karakterin kendisidir
+                                        currentWaypointIndex = 2
                                     else
-                                        -- Yol hesaplanamazsa direkt MoveTo kullan
                                         currentWaypoints = {}
                                         char.Humanoid:MoveTo(targetPos)
                                     end
@@ -341,7 +376,6 @@ local function MainHubLoader()
                                         char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                                     end
                                     
-                                    -- Mevcut noktaya yaklaşıldıysa bir sonrakine geç
                                     if (myPos - waypoint.Position).Magnitude < 4 then
                                         currentWaypointIndex = currentWaypointIndex + 1
                                     end
@@ -358,7 +392,6 @@ local function MainHubLoader()
                             local overheadPos = targetPos + Vector3.new(0, _G.OverheadHeight or 3.5, 0)
                             char.HumanoidRootPart.CFrame = CFrame.new(overheadPos, targetPos)
                             
-                            -- Yerçekimi ivmesini ve hızını tamamen sıfırla
                             char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
                             char.HumanoidRootPart.AssemblyAngularVelocity = Vector3.zero
                         end
@@ -524,7 +557,7 @@ else
     KTitle.BackgroundTransparency = 1
 
     local KeyBox = Instance.new("TextBox", KeyFrame)
-    KeyBox.PlaceholderText = "Enter Key..."
+    KeyBox.PlaceholderText = "Enter Secure Key..."
     KeyBox.Text = ""
     KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
     KeyBox.Position = UDim2.new(0.075, 0, 0.24, 0)
@@ -544,7 +577,8 @@ else
     VerifyBtn.TextSize = 14
     Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
 
-    local CopyBtn = Instance.new("TextButton", KeyFrame)
+    local CopyBtn = Instance.new("TextButton", KeyFile and KeyFileName or KeyFrame) -- safe reference fallback
+    CopyBtn = Instance.new("TextButton", KeyFrame)
     CopyBtn.Text = "Get Key"
     CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
     CopyBtn.Position = UDim2.new(0.525, 0, 0.52, 0)
@@ -561,7 +595,7 @@ else
     StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
     StatusLabel.TextSize = 12
     StatusLabel.Font = Enum.Font.SourceSansItalic
-    StatusLabel.Text = "Please enter key to launch script."
+    StatusLabel.Text = "Please enter secure token key."
 
     CopyBtn.MouseButton1Click:Connect(function()
         setclipboard(LOOTLABS_LINK)
@@ -579,7 +613,7 @@ else
             KeySystemUI:Destroy()
             MainHubLoader()
         else
-            StatusLabel.Text = "Invalid or Expired Key!"
+            StatusLabel.Text = "Invalid or Expired Token Key!"
             StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         end
     end)
