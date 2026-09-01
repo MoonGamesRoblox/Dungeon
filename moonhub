@@ -1,56 +1,47 @@
--- Moon Hub | Dungeon Quest Reborn (Work.ink Key System)
+-- Moon Hub | 6-Hour Dynamic Key Verification Engine
 
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 ----------------------------------------------------
--- 🔑 WORK.INK CONFIGURATION
+-- 🔑 KEY ENGINE & LOOTLABS CONFIG
 ----------------------------------------------------
-local KeyFileName = "MoonHub_WorkInkSave.json"
+local KeyFileName = "MoonHub_DynamicKeySave.json"
+local LOOTLABS_LINK = "https://lootdest.org/s?wUhf9ZlT" -- LootLabs Redirect Linkin
 
--- Work.ink Panosundan Alınacak Bilgiler:
-local WORKINK_API_KEY = "4a081c98-1a1b-4bc9-8e70-c0ea2f892512" 
-local WORKINK_LINK_ID = "2ULB/moon-games-key"
-
--- Oyuncunun Work.ink Reklam Linki
-local function GetWorkInkLink()
-    return string.format("https://work.ink/%s", WORKINK_LINK_ID)
-end
-
--- Work.ink Key Doğrulama
-local function VerifyWorkInkKey(userEnteredKey)
-    local requestUrl = string.format(
-        "https://work.ink/api/v2/token/verify/%s/%s",
-        WORKINK_API_KEY,
-        userEnteredKey
-    )
+-- Sitedeki JS Algoritmasıyla Birebir Aynı Şifre Çözücü
+local function GenerateValidKeyForCurrentBlock()
+    local timeBlock = math.floor(os.time() / (6 * 3600)) -- 6 Saatlik Dilim
+    local secret = "MOON_HUB_SECRET_SALT_2026"
+    local str = tostring(timeBlock) .. secret
     
-    local success, response = pcall(function()
-        return game:HttpGet(requestUrl)
-    end)
-    
-    if success and response then
-        local decodeSuccess, data = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        
-        if decodeSuccess and data and (data.valid == true or data.success == true) then
-            return true
-        end
+    local hash = 0
+    for i = 1, #str do
+        local char = string.byte(str, i)
+        hash = (hash * 31 + char) % 4294967296
     end
-    return false
+    
+    -- JavaScript bitwise uyumluluğu
+    if hash > 2147483647 then
+        hash = hash - 4294967296
+    end
+    
+    local keyHex = string.format("%X", math.abs(hash))
+    return "MOON-" .. keyHex
 end
 
--- Yerel Json Kontrolü
+-- Key Kontrolü
+local function VerifyKey(enteredKey)
+    if not enteredKey or enteredKey == "" then return false end
+    local cleanInput = string.upper(string.gsub(enteredKey, "%s+", ""))
+    local validKey = GenerateValidKeyForCurrentBlock()
+    return cleanInput == validKey
+end
+
+-- Yerel Kayıt Kontrolü
 local function CheckSavedKey()
     if isfile and readfile and isfile(KeyFileName) then
         local success, result = pcall(function()
@@ -58,7 +49,7 @@ local function CheckSavedKey()
         end)
         
         if success and result and result.Key then
-            if VerifyWorkInkKey(result.Key) then
+            if VerifyKey(result.Key) then
                 return true
             end
         end
@@ -71,8 +62,7 @@ local function SaveKey(enteredKey)
     if writefile then
         local data = {
             Key = enteredKey,
-            UserId = LocalPlayer.UserId,
-            Time = os.time()
+            SavedAt = os.time()
         }
         pcall(function()
             writefile(KeyFileName, HttpService:JSONEncode(data))
@@ -81,576 +71,65 @@ local function SaveKey(enteredKey)
 end
 
 ----------------------------------------------------
--- 🌐 GLOBALS & ENGINE INITIALIZER
-----------------------------------------------------
-_G.AutoKill = false
-_G.AutoAttack = false
-_G.AutoSkill = false
-_G.KillDistance = 8
-
-_G.AutoEquipBest = false
-_G.SelectedClass = "Physical (Warrior)"
-
-_G.WalkSpeed = 16
-_G.JumpPower = 50
-_G.Noclip = false
-_G.InfiniteJump = false
-
-_G.AutoStart = false
-_G.AutoReplay = false
-_G.AutoNextDungeon = false
-_G.AutoDungeon = false
-
-_G.AutoAddStats = false
-_G.SelectedStat = "Physical Power"
-
-----------------------------------------------------
--- 🛡️ EQUIPMENT SCANNER ENGINE
-----------------------------------------------------
-local function ForceEquipBestLogic()
-    pcall(function()
-        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
-        if not remotes then return end
-
-        local equipBestRemote = remotes:FindFirstChild("equipBest") or remotes:FindFirstChild("equipBestItems") or remotes:FindFirstChild("autoEquip")
-        
-        local classType = "Physical"
-        if string.find(_G.SelectedClass, "Mage") then classType = "Spell"
-        elseif string.find(_G.SelectedClass, "Tank") then classType = "Defense"
-        elseif string.find(_G.SelectedClass, "Healer") then classType = "Healer" end
-
-        if equipBestRemote then
-            if equipBestRemote:IsA("RemoteEvent") then 
-                equipBestRemote:FireServer(classType)
-                equipBestRemote:FireServer()
-            elseif equipBestRemote:IsA("RemoteFunction") then 
-                equipBestRemote:InvokeServer(classType) 
-                equipBestRemote:InvokeServer()
-            end
-        end
-
-        local equipItemRemote = remotes:FindFirstChild("equipItem") or remotes:FindFirstChild("equip") or remotes:FindFirstChild("changeItem")
-        local playerFolder = LocalPlayer:FindFirstChild("inventory") or LocalPlayer:FindFirstChild("Inventory") or ReplicatedStorage:FindFirstChild("playerData")
-
-        if equipItemRemote and playerFolder then
-            for _, item in pairs(playerFolder:GetChildren()) do
-                if item:IsA("Folder") or item:IsA("Configuration") or item:IsA("IntValue") then
-                    local itemType = item:FindFirstChild("Type") or item:FindFirstChild("itemType")
-                    if itemType then
-                        if equipItemRemote:IsA("RemoteEvent") then
-                            equipItemRemote:FireServer(item)
-                        elseif equipItemRemote:IsA("RemoteFunction") then
-                            equipItemRemote:InvokeServer(item)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
-
-----------------------------------------------------
 -- 🚀 MAIN HUB LOADER
 ----------------------------------------------------
-local function LoadOrionHub()
-    local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
-
-    local Window = OrionLib:MakeWindow({
-        Name = "Moon Hub | Dungeon Quest Reborn",
-        HidePremium = true,
-        SaveConfig = false,
-        ConfigFolder = "MoonHubDQ",
-        IntroEnabled = true,
-        IntroText = "Loading Moon Hub..."
-    })
-
-    LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
-
-    ----------------------------------------------------
-    -- ⚔️ TAB 1: COMBAT ENGINE
-    ----------------------------------------------------
-    local CombatTab = Window:MakeTab({
-        Name = "Combat Engine",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
-
-    CombatTab:AddToggle({
-        Name = "Auto Kill & TP Above Target",
-        Default = _G.AutoKill,
-        Callback = function(Value) _G.AutoKill = Value end    
-    })
-
-    CombatTab:AddSlider({
-        Name = "TP Height Distance",
-        Min = 3,
-        Max = 15,
-        Default = _G.KillDistance,
-        Color = Color3.fromRGB(0, 190, 255),
-        Increment = 1,
-        ValueName = "Studs",
-        Callback = function(Value) _G.KillDistance = Value end    
-    })
-
-    CombatTab:AddToggle({
-        Name = "Auto Attack (Safe Remote)",
-        Default = _G.AutoAttack,
-        Callback = function(Value) _G.AutoAttack = Value end    
-    })
-
-    CombatTab:AddToggle({
-        Name = "Smart Auto Skill (E & Q)",
-        Default = _G.AutoSkill,
-        Callback = function(Value) _G.AutoSkill = Value end    
-    })
-
-    ----------------------------------------------------
-    -- 🛡️ TAB 2: ADVANCED CLASS EQUIPMENT
-    ----------------------------------------------------
-    local EquipTab = Window:MakeTab({
-        Name = "Class Equipment",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
-
-    EquipTab:AddDropdown({
-        Name = "Select Class / Build",
-        Default = "Physical (Warrior)",
-        Options = {"Physical (Warrior)", "Spell Power (Mage)", "Tank (Defense)", "Healer (Support)"},
-        Callback = function(Value)
-            _G.SelectedClass = Value
-        end
-    })
-
-    EquipTab:AddToggle({
-        Name = "Auto Equip Best Items (Loop)",
-        Default = _G.AutoEquipBest,
-        Callback = function(Value) 
-            _G.AutoEquipBest = Value 
-            if Value then
-                ForceEquipBestLogic()
-            end
-        end    
-    })
-
-    EquipTab:AddButton({
-        Name = "Equip Best Items Now",
-        Callback = function()
-            ForceEquipBestLogic()
-            OrionLib:MakeNotification({
-                Name = "Equipped!",
-                Content = "Best items scanned for " .. _G.SelectedClass .. ".",
-                Time = 3
-            })
-        end
-    })
-
-    ----------------------------------------------------
-    -- ⚡ TAB 3: MOVEMENT & SPEED
-    ----------------------------------------------------
-    local MovementTab = Window:MakeTab({
-        Name = "Movement & Speed",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
-
-    MovementTab:AddSlider({
-        Name = "WalkSpeed",
-        Min = 16,
-        Max = 150,
-        Default = 16,
-        Color = Color3.fromRGB(0, 255, 120),
-        Increment = 1,
-        ValueName = "Speed",
-        Callback = function(Value) _G.WalkSpeed = Value end    
-    })
-
-    MovementTab:AddSlider({
-        Name = "JumpPower",
-        Min = 50,
-        Max = 300,
-        Default = 50,
-        Color = Color3.fromRGB(255, 200, 0),
-        Increment = 5,
-        ValueName = "Power",
-        Callback = function(Value) _G.JumpPower = Value end    
-    })
-
-    MovementTab:AddToggle({
-        Name = "Noclip (Walk Through Walls)",
-        Default = _G.Noclip,
-        Callback = function(Value) _G.Noclip = Value end    
-    })
-
-    MovementTab:AddToggle({
-        Name = "Infinite Jump Engine",
-        Default = _G.InfiniteJump,
-        Callback = function(Value) _G.InfiniteJump = Value end    
-    })
-
-    ----------------------------------------------------
-    -- 📈 TAB 4: AUTO STATS
-    ----------------------------------------------------
-    local StatsTab = Window:MakeTab({
-        Name = "Auto Stats",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
-
-    StatsTab:AddToggle({
-        Name = "Auto Allocate Stat Points",
-        Default = _G.AutoAddStats,
-        Callback = function(Value) _G.AutoAddStats = Value end    
-    })
-
-    StatsTab:AddDropdown({
-        Name = "Target Stat",
-        Default = "Physical Power",
-        Options = {"Physical Power", "Spell Power", "Defense"},
-        Callback = function(Value) _G.SelectedStat = Value end
-    })
-
-    ----------------------------------------------------
-    -- 🏰 TAB 5: DUNGEON AUTOMATION
-    ----------------------------------------------------
-    local DungeonTab = Window:MakeTab({
-        Name = "Dungeon Automation",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
-
-    DungeonTab:AddToggle({
-        Name = "Auto Start Dungeon",
-        Default = _G.AutoStart,
-        Callback = function(Value) _G.AutoStart = Value end    
-    })
-
-    DungeonTab:AddToggle({
-        Name = "Auto Replay Dungeon",
-        Default = _G.AutoReplay,
-        Callback = function(Value)
-            _G.AutoReplay = Value
-            if Value then _G.AutoNextDungeon = false end
-        end    
-    })
-
-    DungeonTab:AddToggle({
-        Name = "Auto Next Dungeon",
-        Default = _G.AutoNextDungeon,
-        Callback = function(Value)
-            _G.AutoNextDungeon = Value
-            if Value then _G.AutoReplay = false end
-        end    
-    })
-
-    DungeonTab:AddToggle({
-        Name = "Auto Create Best Dungeon (Lobby)",
-        Default = _G.AutoDungeon,
-        Callback = function(Value) _G.AutoDungeon = Value end    
-    })
-
-    ----------------------------------------------------
-    -- 🎯 TARGET LOCATOR & LOGIC THREADS
-    ----------------------------------------------------
-    local function GetNearestEnemy()
-        local nearest = nil
-        local shortestDistance = math.huge
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
-
-        local dungeonFolder = Workspace:FindFirstChild("dungeon") or Workspace:FindFirstChild("Dungeon") or Workspace:FindFirstChild("Monsters") or Workspace
-
-        for _, obj in pairs(dungeonFolder:GetDescendants()) do
-            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-                if obj.Name ~= LocalPlayer.Name and obj.Humanoid.Health > 0 then
-                    local dist = (char.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        nearest = obj
-                    end
-                end
-            end
-        end
-        return nearest
-    end
-
-    task.spawn(function()
-        while task.wait(0.02) do
-            if _G.AutoKill then
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                        local target = GetNearestEnemy()
-                        if target and target:FindFirstChild("HumanoidRootPart") then
-                            local height = _G.KillDistance or 8
-                            local targetPos = target.HumanoidRootPart.Position
-                            local desiredPos = targetPos + Vector3.new(0, height, 0)
-
-                            char.HumanoidRootPart.CFrame = CFrame.lookAt(desiredPos, targetPos)
-                            target.HumanoidRootPart.Size = Vector3.new(height * 2, height * 2, height * 2)
-                            target.HumanoidRootPart.Transparency = 0.8
-                            target.HumanoidRootPart.CanCollide = false
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    task.spawn(function()
-        while task.wait(0.05) do
-            if _G.AutoAttack and _G.AutoKill then
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local tool = char:FindFirstChildOfClass("Tool")
-                        if tool then tool:Activate() end
-
-                        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
-                        if remotes then
-                            local attackRemote = remotes:FindFirstChild("swingWeapon") or remotes:FindFirstChild("attack") or remotes:FindFirstChild("slash")
-                            if attackRemote then
-                                if attackRemote:IsA("RemoteEvent") then attackRemote:FireServer()
-                                elseif attackRemote:IsA("RemoteFunction") then attackRemote:InvokeServer() end
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    task.spawn(function()
-        while task.wait(0.15) do
-            if _G.AutoSkill and _G.AutoKill then
-                pcall(function()
-                    local target = GetNearestEnemy()
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                        task.wait(0.01)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-                        task.wait(0.01)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
-
-                        local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
-                        if remotes then
-                            local useSkill = remotes:FindFirstChild("useAbility") or remotes:FindFirstChild("useSkill") or remotes:FindFirstChild("spell")
-                            if useSkill then
-                                if useSkill:IsA("RemoteEvent") then
-                                    useSkill:FireServer("E", target.HumanoidRootPart.Position)
-                                    useSkill:FireServer("Q", target.HumanoidRootPart.Position)
-                                elseif useSkill:IsA("RemoteFunction") then
-                                    useSkill:InvokeServer("E", target.HumanoidRootPart.Position)
-                                    useSkill:InvokeServer("Q", target.HumanoidRootPart.Position)
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    task.spawn(function()
-        while task.wait(3) do
-            if _G.AutoEquipBest then
-                ForceEquipBestLogic()
-            end
-        end
-    end)
-
-    RunService.Stepped:Connect(function()
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char then
-                if char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = _G.WalkSpeed or 16
-                    char.Humanoid.JumpPower = _G.JumpPower or 50
-                end
-
-                if _G.Noclip then
-                    for _, part in pairs(char:GetChildren()) do
-                        if part:IsA("BasePart") then part.CanCollide = false end
-                    end
-                end
-            end
-        end)
-    end)
-
-    UserInputService.JumpRequest:Connect(function()
-        if _G.InfiniteJump then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end)
-
-    task.spawn(function()
-        while task.wait(0.3) do
-            if _G.AutoAddStats then
-                pcall(function()
-                    local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
-                    if remotes then
-                        local statName = _G.SelectedStat
-                        local statShort = statName
-                        if statName == "Physical Power" then statShort = "Physical"
-                        elseif statName == "Spell Power" then statShort = "Spell" end
-
-                        local posibles = {
-                            "changeStat", "addStatPoint", "allocateStat", "addStat", 
-                            "requestStatAdd", "upgradeStat", "pointAllocate"
-                        }
-
-                        for _, rName in ipairs(posibles) do
-                            local remote = remotes:FindFirstChild(rName)
-                            if remote then
-                                if remote:IsA("RemoteEvent") then
-                                    remote:FireServer(statName, 1)
-                                    remote:FireServer(statShort, 1)
-                                elseif remote:IsA("RemoteFunction") then
-                                    remote:InvokeServer(statName, 1)
-                                    remote:InvokeServer(statShort, 1)
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    local function GetBestDungeonData(playerLevel)
-        if playerLevel >= 180 then return "Orbital Outpost", "Nightmare"
-        elseif playerLevel >= 160 then return "Gilded Depths", "Nightmare"
-        elseif playerLevel >= 140 then return "Volcanic Catacombs", "Nightmare"
-        elseif playerLevel >= 120 then return "Aquatic Temple", "Nightmare"
-        elseif playerLevel >= 105 then return "Unholy Sanctuary", "Nightmare"
-        elseif playerLevel >= 90 then return "King's Castle", "Nightmare"
-        elseif playerLevel >= 75 then return "Pirate Island", "Nightmare"
-        elseif playerLevel >= 60 then return "Underworld", "Insane"
-        elseif playerLevel >= 45 then return "Steampunk Sewers", "Hard"
-        elseif playerLevel >= 30 then return "Winter Outpost", "Hard"
-        elseif playerLevel >= 15 then return "Desert Temple", "Medium"
-        else return "Desert Temple", "Easy" end
-    end
-
-    task.spawn(function()
-        while task.wait(1) do
-            local remotes = ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:FindFirstChild("Remotes")
-            if not remotes then continue end
-
-            if _G.AutoStart then
-                pcall(function()
-                    local startNames = {"startDungeon", "StartDungeon", "changeStartValue", "startTimer", "ready", "voteStart"}
-                    for _, name in pairs(startNames) do
-                        local remote = remotes:FindFirstChild(name)
-                        if remote then
-                            if remote:IsA("RemoteEvent") then remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then remote:InvokeServer() end
-                        end
-                    end
-                end)
-            end
-
-            if _G.AutoReplay then
-                pcall(function()
-                    local replay = remotes:FindFirstChild("changeCanReplay") or remotes:FindFirstChild("ReplayDungeon") or remotes:FindFirstChild("playAgain")
-                    if replay then
-                        if replay:IsA("RemoteEvent") then replay:FireServer(true)
-                        elseif replay:IsA("RemoteFunction") then replay:InvokeServer(true) end
-                    end
-                end)
-            end
-
-            if _G.AutoNextDungeon then
-                pcall(function()
-                    local nextRemote = remotes:FindFirstChild("nextDungeon") or remotes:FindFirstChild("NextDungeon") or remotes:FindFirstChild("voteNextDungeon")
-                    if nextRemote then
-                        if nextRemote:IsA("RemoteEvent") then nextRemote:FireServer()
-                        elseif nextRemote:IsA("RemoteFunction") then nextRemote:InvokeServer() end
-                    end
-                end)
-            end
-
-            if _G.AutoDungeon then
-                pcall(function()
-                    local level = 1
-                    local pData = LocalPlayer:FindFirstChild("leaderstats") or LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("playerData")
-                    if pData and pData:FindFirstChild("Level") then level = pData.Level.Value end
-                    
-                    local mapName, difficulty = GetBestDungeonData(level)
-                    local createRemote = remotes:FindFirstChild("createLobby") or remotes:FindFirstChild("CreateLobby") or remotes:FindFirstChild("newLobby")
-                    
-                    if createRemote then
-                        if createRemote:IsA("RemoteFunction") then createRemote:InvokeServer(mapName, difficulty, 1, true)
-                        elseif createRemote:IsA("RemoteEvent") then createRemote:FireServer(mapName, difficulty, 1, true) end
-                    end
-                end)
-            end
-        end
-    end)
-
-    OrionLib:Init()
+local function MainHubLoader()
+    print("Moon Hub Başarıyla Yüklendi!")
+    -- Hile kodların buraya gelecek
 end
 
 ----------------------------------------------------
--- 🔐 CHECK SAVED KEY OR SHOW KEY UI
+-- 🔐 KEY GUI
 ----------------------------------------------------
 if CheckSavedKey() then
-    LoadOrionHub()
+    MainHubLoader()
 else
     local KeySystemUI = Instance.new("ScreenGui")
-    KeySystemUI.Name = "MoonHubKeyNative"
+    KeySystemUI.Name = "MoonHubKeyUI"
     KeySystemUI.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
     local KeyFrame = Instance.new("Frame", KeySystemUI)
-    KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-    KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
-    KeyFrame.Size = UDim2.new(0, 350, 0, 200)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    KeyFrame.Position = UDim2.new(0.5, -175, 0.5, -110)
+    KeyFrame.Size = UDim2.new(0, 350, 0, 220)
     KeyFrame.Active = true
     KeyFrame.Draggable = true
     Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 10)
 
     local KTitle = Instance.new("TextLabel", KeyFrame)
-    KTitle.Text = "🌙 MOON HUB | WORK.INK KEY SYSTEM"
+    KTitle.Text = "🌙 MOON HUB | DYNAMIC KEY SYSTEM"
     KTitle.TextColor3 = Color3.fromRGB(0, 190, 255)
-    KTitle.TextSize = 15
+    KTitle.TextSize = 14
     KTitle.Font = Enum.Font.SourceSansBold
     KTitle.Size = UDim2.new(1, 0, 0, 40)
     KTitle.BackgroundTransparency = 1
 
     local KeyBox = Instance.new("TextBox", KeyFrame)
-    KeyBox.PlaceholderText = "Paste your key here..."
+    KeyBox.PlaceholderText = "Paste key from website..."
     KeyBox.Text = ""
     KeyBox.Size = UDim2.new(0.85, 0, 0, 40)
-    KeyBox.Position = UDim2.new(0.075, 0, 0.25, 0)
-    KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    KeyBox.Position = UDim2.new(0.075, 0, 0.24, 0)
+    KeyBox.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
     KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     KeyBox.Font = Enum.Font.SourceSans
-    KeyBox.TextSize = 16
+    KeyBox.TextSize = 15
     Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
 
     local VerifyBtn = Instance.new("TextButton", KeyFrame)
-    VerifyBtn.Text = "Submit Key"
+    VerifyBtn.Text = "Verify Key"
     VerifyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-    VerifyBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+    VerifyBtn.Position = UDim2.new(0.075, 0, 0.52, 0)
     VerifyBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 230)
     VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     VerifyBtn.Font = Enum.Font.SourceSansBold
-    VerifyBtn.TextSize = 15
+    VerifyBtn.TextSize = 14
     Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 6)
 
     local CopyBtn = Instance.new("TextButton", KeyFrame)
-    CopyBtn.Text = "Get Key (Work.ink)"
+    CopyBtn.Text = "Get Key (LootLabs)"
     CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
-    CopyBtn.Position = UDim2.new(0.525, 0, 0.55, 0)
-    CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    CopyBtn.Position = UDim2.new(0.525, 0, 0.52, 0)
+    CopyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
     CopyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     CopyBtn.Font = Enum.Font.SourceSans
     CopyBtn.TextSize = 14
@@ -658,37 +137,31 @@ else
 
     local StatusLabel = Instance.new("TextLabel", KeyFrame)
     StatusLabel.Size = UDim2.new(1, 0, 0, 25)
-    StatusLabel.Position = UDim2.new(0, 0, 0.8, 0)
+    StatusLabel.Position = UDim2.new(0, 0, 0.78, 0)
     StatusLabel.BackgroundTransparency = 1
-    StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    StatusLabel.TextSize = 13
+    StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+    StatusLabel.TextSize = 12
     StatusLabel.Font = Enum.Font.SourceSansItalic
-    StatusLabel.Text = "Waiting for input..."
+    StatusLabel.Text = "Keys refresh automatically every 6 hours."
 
     CopyBtn.MouseButton1Click:Connect(function()
-        local workLink = GetWorkInkLink()
-        setclipboard(workLink)
-        StatusLabel.Text = "Work.ink link copied to clipboard!"
+        setclipboard(LOOTLABS_LINK)
+        StatusLabel.Text = "LootLabs link copied!"
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     end)
 
     VerifyBtn.MouseButton1Click:Connect(function()
-        local input = string.gsub(KeyBox.Text, "%s+", "")
-        StatusLabel.Text = "Verifying with Work.ink..."
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-        
-        task.spawn(function()
-            if VerifyWorkInkKey(input) then
-                StatusLabel.Text = "Key Verified! Loading..."
-                StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                SaveKey(input)
-                task.wait(0.4)
-                KeySystemUI:Destroy()
-                LoadOrionHub()
-            else
-                StatusLabel.Text = "Invalid or Expired Key!"
-                StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            end
-        end)
+        local inputKey = KeyBox.Text
+        if VerifyKey(inputKey) then
+            StatusLabel.Text = "Key Accepted! Loading..."
+            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            SaveKey(inputKey)
+            task.wait(0.5)
+            KeySystemUI:Destroy()
+            MainHubLoader()
+        else
+            StatusLabel.Text = "Invalid or Expired Key!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
     end)
 end
