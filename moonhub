@@ -13,7 +13,7 @@ local LocalPlayer = Players.LocalPlayer
 ----------------------------------------------------
 -- 🔑 LOOTLABS CONFIG & KEY ALGORITHM
 ----------------------------------------------------
-local KeyFileName = "MoonHub_DynamicKeySave.json"
+local KeyFileName = "MoonHub_DynamicKeySave_v2.json"
 local LOOTLABS_LINK = "https://loot-link.com/s?5nfGFsob"
 
 local function GenerateValidKeyForCurrentBlock()
@@ -69,7 +69,7 @@ local function SaveKey(enteredKey)
 end
 
 ----------------------------------------------------
--- 🚀 MAIN HUB LOADER (ORION LIBRARY & DUNGEON QUEST REBORN)
+-- 🚀 MAIN HUB LOADER (ORION UI)
 ----------------------------------------------------
 local function MainHubLoader()
     local Settings = {
@@ -81,7 +81,6 @@ local function MainHubLoader()
         FarmDistance = 5
     }
 
-    -- Background Loops & Logic
     RunService.RenderStepped:Connect(function()
         local character = LocalPlayer.Character
         if not character then return end
@@ -89,12 +88,10 @@ local function MainHubLoader()
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         local root = character:FindFirstChild("HumanoidRootPart")
 
-        -- Speed Hack
         if humanoid and Settings.WalkSpeed ~= 16 then
             humanoid.WalkSpeed = Settings.WalkSpeed
         end
 
-        -- Auto Farm
         if Settings.AutoFarm and root then
             local mobs = Workspace:FindFirstChild("dungeons") or Workspace:FindFirstChild("Monsters") or Workspace
             local closestMob = nil
@@ -120,7 +117,6 @@ local function MainHubLoader()
             end
         end
 
-        -- Auto Dodge
         if Settings.AutoDodge and root then
             for _, obj in pairs(Workspace:GetChildren()) do
                 if obj.Name:find("Spell") or obj.Name:find("Area") or obj.Name:find("Red") then
@@ -132,7 +128,6 @@ local function MainHubLoader()
         end
     end)
 
-    -- Auto Abilities Loop
     task.spawn(function()
         while task.wait(0.5) do
             if Settings.AutoAbilities then
@@ -146,7 +141,6 @@ local function MainHubLoader()
         end
     end)
 
-    -- Auto Dungeon Loop
     task.spawn(function()
         while task.wait(2) do
             if Settings.AutoDungeon then
@@ -160,9 +154,7 @@ local function MainHubLoader()
         end
     end)
 
-    ----------------------------------------------------
-    -- Orion Library Setup
-    ----------------------------------------------------
+    -- Orion UI Yüklemesi
     local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
 
     local Window = OrionLib:MakeWindow({
@@ -172,7 +164,6 @@ local function MainHubLoader()
         ConfigFolder = "MoonHubConfig"
     })
 
-    -- Main Farm Tab
     local MainTab = Window:MakeTab({
         Name = "Main Farm",
         Icon = "rbxassetid://4483362458",
@@ -208,7 +199,6 @@ local function MainHubLoader()
         end    
     })
 
-    -- Dungeon Automation Tab
     local DungeonTab = Window:MakeTab({
         Name = "Dungeon Automation",
         Icon = "rbxassetid://4483362458",
@@ -231,7 +221,6 @@ local function MainHubLoader()
         end    
     })
 
-    -- Player Mods Tab
     local MiscTab = Window:MakeTab({
         Name = "Player Mods",
         Icon = "rbxassetid://4483362458",
@@ -255,7 +244,7 @@ local function MainHubLoader()
 end
 
 ----------------------------------------------------
--- 🔐 KULLANICI KEY ARAYÜZÜ (UI)
+-- 🔐 KEY SYSTEM UI
 ----------------------------------------------------
 if CheckSavedKey() then
     MainHubLoader()
