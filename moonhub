@@ -1,18 +1,21 @@
--- Moon Hub | 6-Hour Dynamic Key System & Verification Engine
+-- Moon Hub | 6-Hour Dynamic Key System & Orion Library Integration
 
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Workspace = game:GetService("Workspace")
+
 local LocalPlayer = Players.LocalPlayer
 
 ----------------------------------------------------
 -- 🔑 LOOTLABS CONFIG & KEY ALGORITHM
 ----------------------------------------------------
 local KeyFileName = "MoonHub_DynamicKeySave.json"
-local LOOTLABS_LINK = "https://loot-link.com/s?5nfGFsob" -- Yeni Linkin Eklendi!
+local LOOTLABS_LINK = "https://loot-link.com/s?5nfGFsob"
 
--- GitHub Sitenle Birebir Eşleşen 6 Saatlik Algoritma
 local function GenerateValidKeyForCurrentBlock()
     local timeBlock = math.floor(os.time() / (6 * 3600))
     local secret = "MOON_HUB_SECRET_SALT_2026"
@@ -66,27 +69,189 @@ local function SaveKey(enteredKey)
 end
 
 ----------------------------------------------------
--- 🚀 ANA HİLE YÜKLEYİCİSİ (MOON HUB)
+-- 🚀 MAIN HUB LOADER (ORION LIBRARY & DUNGEON QUEST REBORN)
 ----------------------------------------------------
 local function MainHubLoader()
-    -- Key doğrulandıktan sonra çalışacak olan asıl Moon Hub kodun:
-    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-    local Window = Rayfield:CreateWindow({
-        Name = "🌙 Moon Hub | Main GUI",
-        LoadingTitle = "Moon Hub Loading...",
-        LoadingSubtitle = "by MoonGames",
-        ConfigurationSaving = { Enabled = false }
+    local Settings = {
+        AutoFarm = false,
+        AutoAbilities = false,
+        AutoDungeon = false,
+        AutoDodge = false,
+        WalkSpeed = 16,
+        FarmDistance = 5
+    }
+
+    -- Background Loops & Logic
+    RunService.RenderStepped:Connect(function()
+        local character = LocalPlayer.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local root = character:FindFirstChild("HumanoidRootPart")
+
+        -- Speed Hack
+        if humanoid and Settings.WalkSpeed ~= 16 then
+            humanoid.WalkSpeed = Settings.WalkSpeed
+        end
+
+        -- Auto Farm
+        if Settings.AutoFarm and root then
+            local mobs = Workspace:FindFirstChild("dungeons") or Workspace:FindFirstChild("Monsters") or Workspace
+            local closestMob = nil
+            local shortestDist = math.huge
+
+            for _, mob in pairs(mobs:GetChildren()) do
+                local mobRoot = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("PrimaryPart")
+                local mobHum = mob:FindFirstChildOfClass("Humanoid")
+                
+                if mobRoot and mobHum and mobHum.Health > 0 then
+                    local dist = (root.Position - mobRoot.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        closestMob = mobRoot
+                    end
+                end
+            end
+
+            if closestMob then
+                root.CFrame = closestMob.CFrame * CFrame.new(0, 0, Settings.FarmDistance)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
+        end
+
+        -- Auto Dodge
+        if Settings.AutoDodge and root then
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if obj.Name:find("Spell") or obj.Name:find("Area") or obj.Name:find("Red") then
+                    if (root.Position - obj.Position).Magnitude < 12 then
+                        root.CFrame = root.CFrame * CFrame.new(0, 0, -15)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Auto Abilities Loop
+    task.spawn(function()
+        while task.wait(0.5) do
+            if Settings.AutoAbilities then
+                local keys = {Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F}
+                for _, key in ipairs(keys) do
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
+                end
+            end
+        end
+    end)
+
+    -- Auto Dungeon Loop
+    task.spawn(function()
+        while task.wait(2) do
+            if Settings.AutoDungeon then
+                local replayBtn = LocalPlayer.PlayerGui:FindFirstChild("ReplayButton", true)
+                if replayBtn and replayBtn.Visible then
+                    for _, v in pairs(getconnections(replayBtn.MouseButton1Click)) do
+                        v:Function()
+                    end
+                end
+            end
+        end
+    end)
+
+    ----------------------------------------------------
+    -- Orion Library Setup
+    ----------------------------------------------------
+    local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+
+    local Window = OrionLib:MakeWindow({
+        Name = "🌙 Moon Hub | Dungeon Quest Reborn",
+        HidePremium = false,
+        SaveConfig = false,
+        ConfigFolder = "MoonHubConfig"
     })
 
-    local MainTab = Window:CreateTab("Main", 4483362458)
-    MainTab:CreateButton({
-        Name = "Moon Hub Aktif!",
-        Callback = function()
-            Rayfield:Notify({ Title = "Moon Hub", Content = "Başarıyla giriş yapıldı!", Duration = 3 })
-        end,
+    -- Main Farm Tab
+    local MainTab = Window:MakeTab({
+        Name = "Main Farm",
+        Icon = "rbxassetid://4483362458",
+        PremiumOnly = false
     })
 
-    -- Kendi hazırladığın Rayfield/Orion Script kodlarını buranın ALTINA ekleyebilirsin.
+    MainTab:AddToggle({
+        Name = "Auto Farm Mobs",
+        Default = false,
+        Callback = function(Value)
+            Settings.AutoFarm = Value
+        end    
+    })
+
+    MainTab:AddToggle({
+        Name = "Auto Use Abilities (Q, E, R, F)",
+        Default = false,
+        Callback = function(Value)
+            Settings.AutoAbilities = Value
+        end    
+    })
+
+    MainTab:AddSlider({
+        Name = "Farm Distance",
+        Min = 2,
+        Max = 15,
+        Default = 5,
+        Color = Color3.fromRGB(168, 85, 247),
+        Increment = 1,
+        ValueName = "Studs",
+        Callback = function(Value)
+            Settings.FarmDistance = Value
+        end    
+    })
+
+    -- Dungeon Automation Tab
+    local DungeonTab = Window:MakeTab({
+        Name = "Dungeon Automation",
+        Icon = "rbxassetid://4483362458",
+        PremiumOnly = false
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Replay / Auto Dungeon",
+        Default = false,
+        Callback = function(Value)
+            Settings.AutoDungeon = Value
+        end    
+    })
+
+    DungeonTab:AddToggle({
+        Name = "Auto Dodge Attacks",
+        Default = false,
+        Callback = function(Value)
+            Settings.AutoDodge = Value
+        end    
+    })
+
+    -- Player Mods Tab
+    local MiscTab = Window:MakeTab({
+        Name = "Player Mods",
+        Icon = "rbxassetid://4483362458",
+        PremiumOnly = false
+    })
+
+    MiscTab:AddSlider({
+        Name = "WalkSpeed Hack",
+        Min = 16,
+        Max = 150,
+        Default = 16,
+        Color = Color3.fromRGB(168, 85, 247),
+        Increment = 1,
+        ValueName = "Speed",
+        Callback = function(Value)
+            Settings.WalkSpeed = Value
+        end    
+    })
+
+    OrionLib:Init()
 end
 
 ----------------------------------------------------
